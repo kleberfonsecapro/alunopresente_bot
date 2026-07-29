@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scraper Bot - Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; }
+        .sidebar { position: fixed; left: 0; top: 0; width: 240px; height: 100vh; background: #1e293b; padding: 1.5rem; }
+        .sidebar h2 { font-size: 1.125rem; margin-bottom: 2rem; }
+        .sidebar nav a { display: block; padding: .75rem 1rem; color: #94a3b8; text-decoration: none; border-radius: 8px; margin-bottom: .25rem; font-size: .875rem; transition: all .2s; }
+        .sidebar nav a:hover, .sidebar nav a.active { background: #334155; color: #e2e8f0; }
+        .main { margin-left: 240px; padding: 2rem; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .header h1 { font-size: 1.5rem; }
+        .logout { padding: .5rem 1rem; background: #dc2626; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: .875rem; }
+        .card { background: #1e293b; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h3 { font-size: 1rem; margin-bottom: 1rem; color: #94a3b8; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; font-size: .875rem; font-weight: 500; margin-bottom: .5rem; color: #cbd5e1; }
+        input, select, textarea { width: 100%; padding: .75rem; border: 1px solid #334155; border-radius: 8px; background: #0f172a; color: #e2e8f0; font-size: .875rem; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #6366f1; }
+        textarea { resize: vertical; min-height: 80px; }
+        .btn { padding: .75rem 1.5rem; border: none; border-radius: 8px; font-size: .875rem; font-weight: 600; cursor: pointer; transition: background .2s; }
+        .btn-primary { background: #6366f1; color: #fff; }
+        .btn-primary:hover { background: #4f46e5; }
+        .btn-success { background: #10b981; color: #fff; }
+        .btn-success:hover { background: #059669; }
+        .btn-danger { background: #dc2626; color: #fff; }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-sm { padding: .4rem .75rem; font-size: .75rem; }
+        .btn-warning { background: #f59e0b; color: #000; }
+        .btn-warning:hover { background: #d97706; }
+        .list-item { display: flex; justify-content: space-between; align-items: center; padding: .75rem 0; border-bottom: 1px solid #334155; }
+        .list-item:last-child { border: none; }
+        .badge { padding: .25rem .75rem; border-radius: 9999px; font-size: .75rem; background: #334155; color: #94a3b8; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>Scraper Bot</h2>
+        <nav>
+            <a href="#" class="active" onclick="showTab('configs')">Configurações</a>
+            <a href="#" onclick="showTab('templates')">Templates</a>
+            <a href="#" onclick="showTab('recipients')">Destinatários</a>
+            <a href="#" onclick="showTab('execute')">Executar</a>
+            <a href="#" onclick="showTab('logs')">Histórico</a>
+            <a href="#" onclick="showTab('stats')">Estatísticas</a>
+            <a href="/admin/" target="_blank" style="margin-top:1rem;border-top:1px solid #334155;border-radius:0;padding-top:1rem">Admin Django ↗</a>
+        </nav>
+    </div>
+    <div class="main">
+        <div class="header">
+            <h1>Painel de Controle</h1>
+            <div style="display:flex;gap:.5rem">
+                <button class="logout" onclick="logout()">Sair</button>
+            </div>
+        </div>
+        <div id="errorMsg" class="hidden" style="background:#7f1d1d;color:#fca5a5;padding:.75rem 1rem;border-radius:8px;margin-bottom:1rem;font-size:.875rem;"></div>
+        <div id="successMsg" class="hidden" style="background:#065f46;color:#6ee7b7;padding:.75rem 1rem;border-radius:8px;margin-bottom:1rem;font-size:.875rem;"></div>
+
+        <!-- Configs -->
+        <div id="tab-configs" class="tab-content">
+            <div class="grid">
+                <div class="card">
+                    <h3>Nova Configuração</h3>
+                    <div class="form-group"><label>Nome</label><input id="configName" placeholder="Minha config"></div>
+                    <div class="form-group"><label>URL Alvo</label><input id="configUrl" placeholder="https://exemplo.com/dados"></div>
+                    <div class="form-group"><label>Campos (separados por vírgula)</label><input id="configFields" placeholder="titulo, preco, descricao"></div>
+                    <div class="form-group"><label>Horários de disparo (separados por vírgula, HH:MM)</label><input id="configTimes" placeholder="08:00, 14:00, 20:00"></div>
+                    <div class="form-group"><label>Dias da semana</label>
+                        <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.25rem" id="dayCheckboxes">
+                            <label style="display:flex;align-items:center;gap:.25rem;font-size:.8125rem;font-weight:400;cursor:pointer"><input type="checkbox" value="0"> Seg</label>
+                            <label style="display:flex;align-items:center;gap:.25rem;font-size:.8125rem;font-weight:400;cursor:pointer"><input type="checkbox" value="1"> Ter</label>
+                            <label style="display:flex;align-items:center;gap:.25rem;font-size:.8125rem;font-weight:400;cursor:pointer"><input type="checkbox" value="2"> Qua</label>
+                            <label style="display:flex;align-items:center;gap:.25rem;font-size:.8125rem;font-weight:400;cursor:pointer"><input type="checkbox" value="3"> Qui</label>
+                            <label style="display:flex;align-items:center;gap:.25rem;font-size:.8125rem;font-weight:400;cursor:pointer"><input type="checkbox" value="4"> Sex</label>
+                            <label style="display:flex;align-items:center;gap:.25rem;font-size:.8125rem;font-weight:400;cursor:pointer"><input type="checkbox" value="5"> Sáb</label>
+                            <label style="display:flex;align-items:center;gap:.25rem;font-size:.8125rem;font-weight:400;cursor:pointer"><input type="checkbox" value="6"> Dom</label>
+                        </div>
+                        <small style="color:#64748b">Nenhum marcado = todos os dias</small>
+                    </div>
+                    <div class="form-group"><label>Template de mensagem</label><select id="configTemplate"><option value="">Nenhum</option></select></div>
+                    <div class="form-group"><label>Duração (dias, vazio = indeterminado)</label><input id="configDuration" type="number" min="1" placeholder="30"></div>
+                    <input type="hidden" id="configEditingId" value="">
+                    <button class="btn btn-primary" onclick="saveConfig()" id="configSaveBtn">Salvar</button>
+                    <button class="btn btn-warning hidden" onclick="cancelConfigEdit()" id="configCancelBtn">Cancelar</button>
+                </div>
+                <div class="card">
+                    <h3>Configurações Existentes</h3>
+                    <div id="configList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Templates -->
+        <div id="tab-templates" class="tab-content hidden">
+            <div class="grid">
+                <div class="card">
+                    <h3>Novo Template</h3>
+                    <div class="form-group"><label>Nome</label><input id="templateName" placeholder="Template Padrão"></div>
+                    <div class="form-group"><label>Corpo</label><textarea id="templateBody" placeholder="Resultado: {{titulo}} - R$ {{preco}}"></textarea></div>
+                    <input type="hidden" id="templateEditingId" value="">
+                    <button class="btn btn-primary" onclick="saveTemplate()" id="templateSaveBtn">Salvar</button>
+                    <button class="btn btn-warning hidden" onclick="cancelTemplateEdit()" id="templateCancelBtn">Cancelar</button>
+                </div>
+                <div class="card">
+                    <h3>Templates Existentes</h3>
+                    <div id="templateList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recipients -->
+        <div id="tab-recipients" class="tab-content hidden">
+            <div class="grid">
+                <div class="card">
+                    <h3>Novo Destinatário</h3>
+                    <div class="form-group"><label>Nome</label><input id="recipientName" placeholder="João"></div>
+                    <div class="form-group"><label>Identificador</label><input id="recipientId" placeholder="+5511999999999"></div>
+                    <div class="form-group"><label>Plataforma</label><select id="recipientPlatform"><option value="whatsapp">WhatsApp</option><option value="telegram">Telegram</option><option value="email">E-mail</option><option value="sms">SMS</option></select></div>
+                    <input type="hidden" id="recipientEditingId" value="">
+                    <button class="btn btn-primary" onclick="saveRecipient()" id="recipientSaveBtn">Salvar</button>
+                    <button class="btn btn-warning hidden" onclick="cancelRecipientEdit()" id="recipientCancelBtn">Cancelar</button>
+                </div>
+                <div class="card">
+                    <h3>Destinatários Existentes</h3>
+                    <div id="recipientList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Execute -->
+        <div id="tab-execute" class="tab-content hidden">
+            <div class="card">
+                <h3>Executar Bot</h3>
+                <div class="form-group"><label>Configuração</label><select id="execConfig"></select></div>
+                <div class="form-group"><label>Template</label><select id="execTemplate"></select></div>
+                <div class="form-group"><label>Destinatários (Ctrl+Click para múltiplos)</label><select id="execRecipients" multiple style="min-height:120px"></select></div>
+                <button class="btn btn-success" onclick="executeBot(false)">Executar</button>
+                <button class="btn btn-warning" onclick="executeBot(true)" style="margin-left:.5rem">Preview (só extração)</button>
+                <div id="execResult" style="margin-top:1rem"></div>
+            </div>
+        </div>
+
+        <!-- Logs -->
+        <div id="tab-logs" class="tab-content hidden">
+            <div class="card">
+                <h3>Histórico de Execuções</h3>
+                <div id="logList"><p style="color:#64748b">Carregando...</p></div>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div id="tab-stats" class="tab-content hidden">
+            <div class="card">
+                <h3>Visão Geral</h3>
+                <div id="statsOverview"><p style="color:#64748b">Carregando...</p></div>
+            </div>
+            <div class="card">
+                <h3>Últimos 7 Dias</h3>
+                <div id="statsDays"><p style="color:#64748b">Carregando...</p></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showError(msg) {
+            const div = document.getElementById('errorMsg');
+            if (div) { div.textContent = msg; div.classList.remove('hidden'); }
+            else alert(msg);
+        }
+        async function api(path, opts = {}) {
+            const csrf = getCookie('csrftoken');
+            const headers = { 'X-CSRFToken': csrf };
+            if (opts.method !== 'DELETE') headers['Content-Type'] = 'application/json';
+            try {
+                const resp = await fetch(path, { headers, credentials: 'same-origin', ...opts });
+                if (!resp.ok) {
+                    if (resp.status === 401) { window.location.href = '/login/'; return null; }
+                    const text = await resp.text();
+                    let detail;
+                    try { detail = JSON.parse(text).detail || text; } catch(e) { detail = text; }
+                    showError('Erro ' + resp.status + ': ' + detail.substring(0, 200));
+                    return null;
+                }
+                const text = await resp.text();
+                return text ? JSON.parse(text) : {};
+            } catch(e) {
+                showError('Falha na requisição: ' + e.message);
+                return null;
+            }
+        }
+        function getCookie(name) {
+            const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+            return match ? match[2] : '';
+        }
+        async function loadConfigs() {
+            const data = await api('/api/configs/', { method: 'GET' });
+            const list = document.getElementById('configList');
+            if (!data) return;
+            list.innerHTML = data.map(c => {
+                const dias = {0:'Seg',1:'Ter',2:'Qua',3:'Qui',4:'Sex',5:'Sáb',6:'Dom'};
+                const diasStr = c.send_days_of_week?.length ? c.send_days_of_week.map(d=>dias[d]||d).join(', ') : 'todos';
+                return `<div class="list-item"><span>${c.name}${c.template_name ? '<br><small style="color:#94a3b8">Template: ' + c.template_name + '</small>' : ''}<br><small style="color:#6366f1">${c.send_times?.join(', ') || 'sem horários'} | ${diasStr}</small></span><span><button class="btn btn-sm btn-primary" onclick="editConfig(${c.id})">Editar</button> <button class="btn btn-sm btn-danger" onclick="deleteConfig(${c.id})">Excluir</button></span></div>`;
+            }).join('');
+            loadTemplatesList();
+        }
+        async function loadTemplatesList() {
+            const data = await api('/api/templates/', { method: 'GET' });
+            const sel = document.getElementById('configTemplate');
+            if (!data) return;
+            const current = sel.value;
+            sel.innerHTML = '<option value="">Nenhum</option>' + data.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+            if (current) sel.value = current;
+        }
+        function cancelConfigEdit() {
+            document.getElementById('configEditingId').value = '';
+            document.getElementById('configName').value = '';
+            document.getElementById('configUrl').value = '';
+            document.getElementById('configFields').value = '';
+            document.getElementById('configTimes').value = '';
+            document.getElementById('configTemplate').value = '';
+            document.getElementById('configDuration').value = '';
+            document.querySelectorAll('#dayCheckboxes input[type=checkbox]').forEach(cb => cb.checked = false);
+            document.getElementById('configSaveBtn').textContent = 'Salvar';
+            document.getElementById('configCancelBtn').classList.add('hidden');
+        }
+        async function editConfig(id) {
+            const data = await api('/api/configs/', { method: 'GET' });
+            if (!data) return;
+            const c = data.find(x => x.id === id);
+            if (!c) return;
+            document.getElementById('configEditingId').value = id;
+            document.getElementById('configName').value = c.name;
+            document.getElementById('configUrl').value = c.target_url || '';
+            const fields = c.extraction_fields || [];
+            document.getElementById('configFields').value = fields.map(f => typeof f === 'string' ? f : f.field_name).join(', ');
+            document.getElementById('configTimes').value = (c.send_times || []).join(', ');
+            const days = c.send_days_of_week || [];
+            document.querySelectorAll('#dayCheckboxes input[type=checkbox]').forEach(cb => cb.checked = days.includes(parseInt(cb.value)));
+            document.getElementById('configTemplate').value = c.template_id || '';
+            document.getElementById('configDuration').value = c.send_duration_days || '';
+            document.getElementById('configSaveBtn').textContent = 'Atualizar';
+            document.getElementById('configCancelBtn').classList.remove('hidden');
+        }
+        async function deleteConfig(id) {
+            if (!confirm('Excluir esta configuração?')) return;
+            await api('/api/configs/' + id + '/', { method: 'DELETE' });
+            loadConfigs();
+        }
+        async function saveConfig() {
+            const id = document.getElementById('configEditingId').value;
+            const name = document.getElementById('configName').value;
+            const target_url = document.getElementById('configUrl').value;
+            const fields = document.getElementById('configFields').value.split(',').map(f => f.trim()).filter(Boolean).map(f => ({field_name: f}));
+            const times = document.getElementById('configTimes').value.split(',').map(t => t.trim()).filter(Boolean);
+            const days = Array.from(document.querySelectorAll('#dayCheckboxes input[type=checkbox]:checked')).map(cb => parseInt(cb.value));
+            const duration = document.getElementById('configDuration').value;
+            const template_id = document.getElementById('configTemplate').value || null;
+            const body = {
+                name, target_url, extraction_fields: fields,
+                send_times: times, send_days_of_week: days,
+                send_duration_days: duration ? parseInt(duration) : null,
+                template_id: template_id ? parseInt(template_id) : null
+            };
+            if (id) {
+                await api('/api/configs/' + id + '/', { method: 'PATCH', body: JSON.stringify(body) });
+            } else {
+                await api('/api/configs/', { method: 'POST', body: JSON.stringify(body) });
+            }
+            cancelConfigEdit();
+            loadConfigs();
+        }
+
+        async function loadTemplates() {
+            const data = await api('/api/templates/', { method: 'GET' });
+            const list = document.getElementById('templateList');
+            if (!data) return;
+            list.innerHTML = data.map(t => `<div class="list-item"><span>${t.name}</span><span><button class="btn btn-sm btn-primary" onclick="editTemplate(${t.id})">Editar</button> <button class="btn btn-sm btn-danger" onclick="deleteTemplate(${t.id})">Excluir</button></span></div>`).join('');
+        }
+        function cancelTemplateEdit() {
+            document.getElementById('templateEditingId').value = '';
+            document.getElementById('templateName').value = '';
+            document.getElementById('templateBody').value = '';
+            document.getElementById('templateSaveBtn').textContent = 'Salvar';
+            document.getElementById('templateCancelBtn').classList.add('hidden');
+        }
+        async function editTemplate(id) {
+            const data = await api('/api/templates/', { method: 'GET' });
+            if (!data) return;
+            const t = data.find(x => x.id === id);
+            if (!t) return;
+            document.getElementById('templateEditingId').value = id;
+            document.getElementById('templateName').value = t.name;
+            document.getElementById('templateBody').value = t.body;
+            document.getElementById('templateSaveBtn').textContent = 'Atualizar';
+            document.getElementById('templateCancelBtn').classList.remove('hidden');
+        }
+        async function deleteTemplate(id) {
+            if (!confirm('Excluir este template?')) return;
+            await api('/api/templates/' + id + '/', { method: 'DELETE' });
+            loadTemplates();
+        }
+        async function saveTemplate() {
+            const id = document.getElementById('templateEditingId').value;
+            const name = document.getElementById('templateName').value;
+            const body = document.getElementById('templateBody').value;
+            if (id) {
+                await api('/api/templates/' + id + '/', { method: 'PATCH', body: JSON.stringify({ name, body }) });
+            } else {
+                await api('/api/templates/', { method: 'POST', body: JSON.stringify({ name, body }) });
+            }
+            cancelTemplateEdit();
+            loadTemplates();
+        }
+
+        async function loadRecipients() {
+            const data = await api('/api/recipients/', { method: 'GET' });
+            const list = document.getElementById('recipientList');
+            if (!data) return;
+            list.innerHTML = data.map(r => `<div class="list-item"><span>${r.name}<br><small style="color:#94a3b8">${r.platform}: ${r.identifier}${r.is_active === false ? ' (inativo)' : ''}</small></span><span><button class="btn btn-sm btn-primary" onclick="editRecipient(${r.id})">Editar</button> <button class="btn btn-sm btn-danger" onclick="deleteRecipient(${r.id})">Excluir</button></span></div>`).join('');
+        }
+        function cancelRecipientEdit() {
+            document.getElementById('recipientEditingId').value = '';
+            document.getElementById('recipientName').value = '';
+            document.getElementById('recipientId').value = '';
+            document.getElementById('recipientPlatform').value = 'whatsapp';
+            document.getElementById('recipientSaveBtn').textContent = 'Salvar';
+            document.getElementById('recipientCancelBtn').classList.add('hidden');
+        }
+        async function editRecipient(id) {
+            const data = await api('/api/recipients/', { method: 'GET' });
+            if (!data) return;
+            const r = data.find(x => x.id === id);
+            if (!r) return;
+            document.getElementById('recipientEditingId').value = id;
+            document.getElementById('recipientName').value = r.name;
+            document.getElementById('recipientId').value = r.identifier;
+            document.getElementById('recipientPlatform').value = r.platform;
+            document.getElementById('recipientSaveBtn').textContent = 'Atualizar';
+            document.getElementById('recipientCancelBtn').classList.remove('hidden');
+        }
+        async function deleteRecipient(id) {
+            if (!confirm('Excluir este destinatário?')) return;
+            await api('/api/recipients/' + id + '/', { method: 'DELETE' });
+            loadRecipients();
+        }
+        async function saveRecipient() {
+            const id = document.getElementById('recipientEditingId').value;
+            const name = document.getElementById('recipientName').value;
+            const identifier = document.getElementById('recipientId').value;
+            const platform = document.getElementById('recipientPlatform').value;
+            if (id) {
+                await api('/api/recipients/' + id + '/', { method: 'PATCH', body: JSON.stringify({ name, identifier, platform }) });
+            } else {
+                await api('/api/recipients/', { method: 'POST', body: JSON.stringify({ name, identifier, platform }) });
+            }
+            cancelRecipientEdit();
+            loadRecipients();
+        }
+
+        async function loadExecuteOptions() {
+            const configs = await api('/api/configs/', { method: 'GET' });
+            const templates = await api('/api/templates/', { method: 'GET' });
+            const recipients = await api('/api/recipients/', { method: 'GET' });
+            if (!configs || !templates || !recipients) return;
+            const cSel = document.getElementById('execConfig');
+            cSel.innerHTML = configs.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            const tSel = document.getElementById('execTemplate');
+            tSel.innerHTML = templates.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+            const rSel = document.getElementById('execRecipients');
+            rSel.innerHTML = recipients.map(r => `<option value="${r.id}">${r.name} (${r.platform})</option>`).join('');
+        }
+
+        async function executeBot(preview) {
+            const config_id = parseInt(document.getElementById('execConfig').value);
+            const template_id = parseInt(document.getElementById('execTemplate').value);
+            const recipient_ids = Array.from(document.getElementById('execRecipients').selectedOptions).map(o => parseInt(o.value));
+            const resultDiv = document.getElementById('execResult');
+            resultDiv.innerHTML = '<p>' + (preview ? 'Extraindo dados (preview)...' : 'Executando...') + '</p>';
+            const body = JSON.stringify({ config_id, template_id, recipient_ids, skip_time_check: true, preview });
+            const data = await api('/api/execute/', { method: 'POST', body });
+            if (!data) return;
+            if (preview && data.success && data.extraction) {
+                resultDiv.innerHTML = '<div style="background:#0f172a;padding:1rem;border-radius:8px;overflow:auto">'
+                    + '<h4 style="margin-bottom:.5rem;color:#10b981">✅ Dados Extraídos (Preview — nenhuma mensagem enviada)</h4>'
+                    + '<table style="width:100%;border-collapse:collapse;font-size:.8125rem">'
+                    + Object.entries(data.extraction.data).map(([k, v]) =>
+                        '<tr><td style="padding:.25rem .5rem;border:1px solid #334155;color:#94a3b8;font-weight:500">' + k + '</td>'
+                        + '<td style="padding:.25rem .5rem;border:1px solid #334155">' + (v ?? '—') + '</td></tr>'
+                    ).join('')
+                    + '</table></div>';
+            } else {
+                resultDiv.innerHTML = `<pre style="background:#0f172a;padding:1rem;border-radius:8px;overflow:auto">${JSON.stringify(data, null, 2)}</pre>`;
+            }
+        }
+
+        function showSuccess(msg) {
+            const div = document.getElementById('successMsg');
+            if (div) { div.textContent = msg; div.classList.remove('hidden'); setTimeout(() => div.classList.add('hidden'), 5000); }
+        }
+        async function logout() { await api('/api/auth/logout/', { method: 'POST' }); window.location.href = '/logout/'; }
+
+        async function loadStats() {
+            const data = await api('/api/stats/', { method: 'GET' });
+            if (!data) return;
+            const trigLabels = {'scheduler':'Agendador','manual':'Manual','telegram':'Telegram'};
+            const trigHtml = Object.entries(data.by_trigger).map(([k,v]) => `<span class="badge" style="margin-right:.25rem">${trigLabels[k]||k}: ${v}</span>`).join('');
+            document.getElementById('statsOverview').innerHTML = `
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem">
+                    <div style="text-align:center;padding:1rem;background:#0f172a;border-radius:8px"><div style="font-size:2rem;font-weight:700">${data.total_executions}</div><small style="color:#94a3b8">Execuções</small></div>
+                    <div style="text-align:center;padding:1rem;background:#0f172a;border-radius:8px"><div style="font-size:2rem;font-weight:700;color:#10b981">${data.total_success}</div><small style="color:#94a3b8">Sucesso</small></div>
+                    <div style="text-align:center;padding:1rem;background:#0f172a;border-radius:8px"><div style="font-size:2rem;font-weight:700;color:#ef4444">${data.total_failed}</div><small style="color:#94a3b8">Falhas</small></div>
+                    <div style="text-align:center;padding:1rem;background:#0f172a;border-radius:8px"><div style="font-size:2rem;font-weight:700;color:#f59e0b">${data.success_rate}%</div><small style="color:#94a3b8">Taxa de Sucesso</small></div>
+                    <div style="text-align:center;padding:1rem;background:#0f172a;border-radius:8px"><div style="font-size:2rem;font-weight:700">${data.total_sent}</div><small style="color:#94a3b8">Mensagens Enviadas</small></div>
+                    <div style="text-align:center;padding:1rem;background:#0f172a;border-radius:8px"><div style="font-size:2rem;font-weight:700;color:#f97316">${data.total_failed_msgs}</div><small style="color:#94a3b8">Mensagens com Falha</small></div>
+                    <div style="text-align:center;padding:1rem;background:#0f172a;border-radius:8px"><div style="font-size:2rem;font-weight:700">${data.avg_duration_sec != null ? data.avg_duration_sec + 's' : '—'}</div><small style="color:#94a3b8">Duração Média</small></div>
+                </div>
+                <div style="margin-top:1rem"><small style="color:#94a3b8">Disparos por: </small>${trigHtml}</div>
+            `;
+            document.getElementById('statsDays').innerHTML = data.last_7_days.map(d => {
+                const bar = d.total ? Math.round(d.success / d.total * 100) : 0;
+                return `<div class="list-item"><span style="min-width:60px"><strong>${d.date}</strong></span><span style="flex:1;margin:0 1rem"><div style="height:8px;background:#334155;border-radius:4px;overflow:hidden"><div style="height:100%;width:${bar}%;background:#10b981;border-radius:4px"></div></div></span><span><small style="color:#94a3b8">${d.success}/${d.total} • ${d.sent} msgs</small></span></div>`;
+            }).join('');
+        }
+        async function loadLogs() {
+            const data = await api('/api/logs/', { method: 'GET' });
+            const list = document.getElementById('logList');
+            if (!data) return;
+            if (data.length === 0) { list.innerHTML = '<p style="color:#64748b">Nenhuma execução registrada ainda.</p>'; return; }
+            const triggerMap = {'scheduler':'⏰','manual':'👤','telegram':'📱'};
+            list.innerHTML = data.map(log => {
+                const icon = triggerMap[log.trigger] || '❓';
+                const status = log.success ? '✅' : '❌';
+                const dur = log.duration_sec != null ? log.duration_sec + 's' : '—';
+                const err = log.error ? `<br><small style="color:#f87171">${log.error.substring(0, 100)}</small>` : '';
+                const date = new Date(log.started_at);
+                const brDate = date.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+                return `<div class="list-item">
+                    <span>${icon} ${status} <strong>${log.config_name}</strong><br>
+                    <small style="color:#94a3b8">${brDate} — duração: ${dur} | enviados: ${log.sent_count} | falhas: ${log.failed_count}</small>${err}</span>
+                </div>`;
+            }).join('');
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            loadConfigs();
+            loadRecipients();
+        });
+        function showTab(name) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+            document.getElementById('tab-' + name).classList.remove('hidden');
+            document.querySelectorAll('.sidebar nav a').forEach(a => a.classList.remove('active'));
+            document.querySelector(`.sidebar nav a[onclick*="${name}"]`).classList.add('active');
+            if (name === 'templates') loadTemplates();
+            if (name === 'recipients') loadRecipients();
+            if (name === 'execute') loadExecuteOptions();
+            if (name === 'logs') loadLogs();
+            if (name === 'stats') loadStats();
+        }
+    </script>
+</body>
+</html>

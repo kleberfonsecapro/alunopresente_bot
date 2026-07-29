@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scraper Bot - Login</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        .login-card { background: #1e293b; border-radius: 12px; padding: 2.5rem; width: 100%; max-width: 400px; box-shadow: 0 4px 24px rgba(0,0,0,.3); }
+        h1 { font-size: 1.5rem; margin-bottom: .25rem; }
+        .subtitle { color: #94a3b8; font-size: .875rem; margin-bottom: 2rem; }
+        .form-group { margin-bottom: 1.25rem; }
+        label { display: block; font-size: .875rem; font-weight: 500; margin-bottom: .5rem; color: #cbd5e1; }
+        input { width: 100%; padding: .75rem; border: 1px solid #334155; border-radius: 8px; background: #0f172a; color: #e2e8f0; font-size: .875rem; transition: border-color .2s; }
+        input:focus { outline: none; border-color: #6366f1; }
+        button { width: 100%; padding: .75rem; background: #6366f1; color: #fff; border: none; border-radius: 8px; font-size: .875rem; font-weight: 600; cursor: pointer; transition: background .2s; }
+        button:hover { background: #4f46e5; }
+        .error { color: #f87171; font-size: .875rem; margin-top: 1rem; display: none; }
+        .error.show { display: block; }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h1>Scraper Bot</h1>
+        <p class="subtitle">Painel de Controle</p>
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">Usuário</label>
+                <input type="text" id="username" name="username" required autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label for="password">Senha</label>
+                <input type="password" id="password" name="password" required autocomplete="current-password">
+            </div>
+            <button type="submit">Entrar</button>
+            <div class="error" id="errorMsg">Credenciais inválidas</div>
+        </form>
+    </div>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const btn = form.querySelector('button');
+            const error = document.getElementById('errorMsg');
+            btn.disabled = true;
+            btn.textContent = 'Entrando...';
+            error.classList.remove('show');
+
+            const resp = await fetch('/api/auth/login/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                body: JSON.stringify({ username: form.username.value, password: form.password.value })
+            });
+            const data = await resp.json();
+            if (data.success) { window.location.href = '/dashboard/'; }
+            else { error.textContent = data.error || 'Erro ao fazer login'; error.classList.add('show'); }
+            btn.disabled = false; btn.textContent = 'Entrar';
+        });
+        function getCookie(name) {
+            const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+            return match ? match[2] : '';
+        }
+    </script>
+</body>
+</html>

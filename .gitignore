@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.sqlite3
+staticfiles/
+backups/
+playwright_state/
+storage_state.json
+AGENTS.md
