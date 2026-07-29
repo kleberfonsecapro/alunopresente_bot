@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from urllib.parse import urlparse
 
 from scraper_bot.schemas import ExtractionContract
 
@@ -27,3 +28,13 @@ class SiteExtractor(ABC):
 
     async def relogin(self) -> None:
         raise NotImplementedError
+
+    def matches_url(self, url: str) -> bool:
+        if not self.site_domain:
+            return False
+        try:
+            hostname = urlparse(url).hostname or ''
+            parts = hostname.split('.')
+            return self.site_domain in parts
+        except Exception:
+            return False

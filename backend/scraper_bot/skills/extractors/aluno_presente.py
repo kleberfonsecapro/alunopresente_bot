@@ -34,9 +34,6 @@ class AlunoPresenteExtractor(SiteExtractor):
             return None
         return None
 
-    def matches_url(self, url: str) -> bool:
-        return self.site_domain in url
-
     async def extract_via_api(
         self, url: str, fields: list[ExtractionContract], token: str
     ) -> dict:

@@ -46,7 +46,8 @@ class ExtractionSkill:
         return await extractor.extract_via_playwright(url, fields)
 
     def _detect_site_type(self, url: str) -> str:
-        from scraper_bot.skills.extractors.aluno_presente import AlunoPresenteExtractor
         if 'alunopresente' in url:
-            return AlunoPresenteExtractor.site_type
+            return 'aluno_presente'
+        if 'escolasegura' in url:
+            return 'escola_segura'
         return 'generic'
