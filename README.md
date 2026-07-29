@@ -125,7 +125,7 @@ O sistema segue uma arquitetura **headless** (backend e frontend totalmente desa
 ### Segurança
 - ✅ Autenticação por sessão Django (cookies `HttpOnly` + `SameSite`)
 - ✅ **Rate limiting**: 10 tentativas/minuto no login
-- ✅ **Timeout de sessão**: 8h, expira ao fechar navegador
+- ✅ **Timeout de sessão**: 10 minutos, expira ao fechar navegador
 - ✅ **DEBUG=False** em produção
 - ✅ **Security headers** no Nginx (X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy)
 - ✅ Senha do superusuário via variável de ambiente (fallback aleatório seguro)
