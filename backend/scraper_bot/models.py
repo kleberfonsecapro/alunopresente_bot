@@ -1,8 +1,16 @@
 from django.db import models
 
+from scraper_bot.skills.extractors import list_site_choices
+
 
 class BotConfig(models.Model):
     name = models.CharField(max_length=255)
+    site_type = models.CharField(
+        max_length=50,
+        choices=list_site_choices,
+        default='aluno_presente',
+        help_text="Tipo do site alvo para selecionar o extrator apropriado"
+    )
     target_url = models.URLField()
     extraction_fields = models.JSONField(
         default=list,

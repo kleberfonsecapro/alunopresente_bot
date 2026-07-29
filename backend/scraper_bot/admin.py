@@ -5,8 +5,8 @@ from scraper_bot.models import BotConfig, ExecutionLog, MessageTemplate, Recipie
 
 @admin.register(BotConfig)
 class BotConfigAdmin(admin.ModelAdmin):
-    list_display = ('name', 'is_active', 'send_times', 'send_days_of_week', 'template', 'created_at')
-    list_filter = ('is_active',)
+    list_display = ('name', 'site_type', 'is_active', 'send_times', 'send_days_of_week', 'template', 'created_at')
+    list_filter = ('site_type', 'is_active')
     search_fields = ('name',)
 
 

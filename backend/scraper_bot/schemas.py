@@ -11,6 +11,10 @@ class ExtractionContract(BaseModel):
 
 class ExtractionInput(BaseModel):
     url: str
+    site_type: str | None = Field(
+        default=None,
+        description="Tipo do site alvo. Auto-detectado se não informado."
+    )
     fields: list[ExtractionContract] = Field(
         default_factory=list,
         description="Campos a serem extraídos da página alvo"
@@ -71,6 +75,7 @@ class BotExecutionInput(BaseModel):
 
 class BotConfigInput(BaseModel):
     name: str
+    site_type: str = 'aluno_presente'
     target_url: str
     extraction_fields: list = Field(
         default_factory=list,
@@ -96,6 +101,7 @@ class BotConfigInput(BaseModel):
 
 class BotConfigUpdate(BaseModel):
     name: str | None = None
+    site_type: str | None = None
     target_url: str | None = None
     extraction_fields: list | None = None
     send_times: list[str] | None = None
@@ -108,6 +114,7 @@ class BotConfigUpdate(BaseModel):
 class BotConfigOutput(BaseModel):
     id: int
     name: str
+    site_type: str
     target_url: str
     extraction_fields: list[str]
     send_times: list[str]
@@ -148,13 +155,7 @@ class MessageTemplateOutput(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-
-class RecipientInput(BaseModel):
-    name: str
-    identifier: str
-    platform: str
-
-
+ 
 class RecipientOutput(BaseModel):
     id: int
     name: str

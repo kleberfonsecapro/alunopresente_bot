@@ -41,11 +41,20 @@ def _model_to_dict(instance, fields: list[str]) -> dict:
     return {f: getattr(instance, f) for f in fields}
 
 
+@router.get('/site-types/', response=list[dict])
+def list_site_types(request):
+    from scraper_bot.skills.extractors.registry import list_site_choices
+    return [
+        {'site_type': st, 'label': label}
+        for st, label in list_site_choices()
+    ]
+
+
 @router.get('/configs/', response=list[dict])
 def list_configs(request):
     qs = BotConfig.objects.all().select_related('template')
     return [{
-        'id': c.id, 'name': c.name, 'target_url': c.target_url,
+        'id': c.id, 'name': c.name, 'site_type': c.site_type, 'target_url': c.target_url,
         'extraction_fields': c.extraction_fields,
         'send_times': c.send_times, 'send_days_of_week': c.send_days_of_week,
         'send_duration_days': c.send_duration_days,
@@ -75,7 +84,7 @@ def update_config(request, config_id: int, payload: BotConfigUpdate):
 
 def _config_to_dict(config: BotConfig) -> dict:
     return {
-        'id': config.id, 'name': config.name, 'target_url': config.target_url,
+        'id': config.id, 'name': config.name, 'site_type': config.site_type, 'target_url': config.target_url,
         'extraction_fields': config.extraction_fields,
         'send_times': config.send_times, 'send_days_of_week': config.send_days_of_week,
         'send_duration_days': config.send_duration_days,
@@ -271,7 +280,8 @@ async def extract_data(request, payload: ExtractionInput):
     skill = ExtractionSkill()
     result = await skill.extract(
         url=payload.url,
-        fields=payload.fields
+        fields=payload.fields,
+        site_type=payload.site_type,
     )
     return result
 

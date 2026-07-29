@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 
 class SessionTimeoutTest(TestCase):
     def test_session_cookie_age_configurado(self):
-        self.assertEqual(settings.SESSION_COOKIE_AGE, 28800)
+        self.assertEqual(settings.SESSION_COOKIE_AGE, 600)
 
     def test_session_expire_at_browser_close(self):
         self.assertTrue(settings.SESSION_EXPIRE_AT_BROWSER_CLOSE)

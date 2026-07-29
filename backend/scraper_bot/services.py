@@ -93,7 +93,8 @@ class BotOrchestrator:
 
             extraction_result = await self.extraction.extract(
                 url=config.target_url,
-                fields=fields
+                fields=fields,
+                site_type=config.site_type,
             )
 
             now = timezone.localtime(timezone.now())
