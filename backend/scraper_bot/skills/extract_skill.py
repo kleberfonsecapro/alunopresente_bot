@@ -48,6 +48,4 @@ class ExtractionSkill:
     def _detect_site_type(self, url: str) -> str:
         if 'alunopresente' in url:
             return 'aluno_presente'
-        if 'escolasegura' in url:
-            return 'escola_segura'
         return 'generic'
