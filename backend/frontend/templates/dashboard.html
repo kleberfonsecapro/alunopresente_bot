@@ -68,6 +68,7 @@
                 <div class="card">
                     <h3>Nova Configuração</h3>
                     <div class="form-group"><label>Nome</label><input id="configName" placeholder="Minha config"></div>
+                    <div class="form-group"><label>Tipo de Site</label><select id="configSiteType"></select></div>
                     <div class="form-group"><label>URL Alvo</label><input id="configUrl" placeholder="https://exemplo.com/dados"></div>
                     <div class="form-group"><label>Campos (separados por vírgula)</label><input id="configFields" placeholder="titulo, preco, descricao"></div>
                     <div class="form-group"><label>Horários de disparo (separados por vírgula, HH:MM)</label><input id="configTimes" placeholder="08:00, 14:00, 20:00"></div>
@@ -198,6 +199,13 @@
             const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
             return match ? match[2] : '';
         }
+        async function loadSiteTypes() {
+            const data = await api('/api/site-types/', { method: 'GET' });
+            const sel = document.getElementById('configSiteType');
+            if (!data) return;
+            sel.innerHTML = data.map(st => `<option value="${st.site_type}">${st.label}</option>`).join('');
+            sel.value = 'aluno_presente';
+        }
         async function loadConfigs() {
             const data = await api('/api/configs/', { method: 'GET' });
             const list = document.getElementById('configList');
@@ -205,7 +213,7 @@
             list.innerHTML = data.map(c => {
                 const dias = {0:'Seg',1:'Ter',2:'Qua',3:'Qui',4:'Sex',5:'Sáb',6:'Dom'};
                 const diasStr = c.send_days_of_week?.length ? c.send_days_of_week.map(d=>dias[d]||d).join(', ') : 'todos';
-                return `<div class="list-item"><span>${c.name}${c.template_name ? '<br><small style="color:#94a3b8">Template: ' + c.template_name + '</small>' : ''}<br><small style="color:#6366f1">${c.send_times?.join(', ') || 'sem horários'} | ${diasStr}</small></span><span><button class="btn btn-sm btn-primary" onclick="editConfig(${c.id})">Editar</button> <button class="btn btn-sm btn-danger" onclick="deleteConfig(${c.id})">Excluir</button></span></div>`;
+                return `<div class="list-item"><span><strong>${c.name}</strong> <span class="badge" style="background:#6366f1;color:#fff;margin-left:.5rem">${c.site_type || 'aluno_presente'}</span><br><small style="color:#64748b"><code>${c.target_url}</code></small>${c.template_name ? '<br><small style="color:#94a3b8">Template: ' + c.template_name + '</small>' : ''}<br><small style="color:#6366f1">${c.send_times?.join(', ') || 'sem horários'} | ${diasStr}</small></span><span><button class="btn btn-sm btn-primary" onclick="editConfig(${c.id})">Editar</button> <button class="btn btn-sm btn-danger" onclick="deleteConfig(${c.id})">Excluir</button></span></div>`;
             }).join('');
             loadTemplatesList();
         }
@@ -220,6 +228,7 @@
         function cancelConfigEdit() {
             document.getElementById('configEditingId').value = '';
             document.getElementById('configName').value = '';
+            document.getElementById('configSiteType').value = 'aluno_presente';
             document.getElementById('configUrl').value = '';
             document.getElementById('configFields').value = '';
             document.getElementById('configTimes').value = '';
@@ -236,6 +245,7 @@
             if (!c) return;
             document.getElementById('configEditingId').value = id;
             document.getElementById('configName').value = c.name;
+            document.getElementById('configSiteType').value = c.site_type || 'aluno_presente';
             document.getElementById('configUrl').value = c.target_url || '';
             const fields = c.extraction_fields || [];
             document.getElementById('configFields').value = fields.map(f => typeof f === 'string' ? f : f.field_name).join(', ');
@@ -261,8 +271,9 @@
             const days = Array.from(document.querySelectorAll('#dayCheckboxes input[type=checkbox]:checked')).map(cb => parseInt(cb.value));
             const duration = document.getElementById('configDuration').value;
             const template_id = document.getElementById('configTemplate').value || null;
+            const site_type = document.getElementById('configSiteType').value;
             const body = {
-                name, target_url, extraction_fields: fields,
+                name, site_type, target_url, extraction_fields: fields,
                 send_times: times, send_days_of_week: days,
                 send_duration_days: duration ? parseInt(duration) : null,
                 template_id: template_id ? parseInt(template_id) : null
@@ -280,7 +291,7 @@
             const data = await api('/api/templates/', { method: 'GET' });
             const list = document.getElementById('templateList');
             if (!data) return;
-            list.innerHTML = data.map(t => `<div class="list-item"><span>${t.name}</span><span><button class="btn btn-sm btn-primary" onclick="editTemplate(${t.id})">Editar</button> <button class="btn btn-sm btn-danger" onclick="deleteTemplate(${t.id})">Excluir</button></span></div>`).join('');
+            list.innerHTML = data.map(t => `<div class="list-item"><span><strong>${t.name}</strong><br><small style="color:#94a3b8;word-break:break-all">${t.body}</small></span><span><button class="btn btn-sm btn-primary" onclick="editTemplate(${t.id})">Editar</button> <button class="btn btn-sm btn-danger" onclick="deleteTemplate(${t.id})">Excluir</button></span></div>`).join('');
         }
         function cancelTemplateEdit() {
             document.getElementById('templateEditingId').value = '';
@@ -447,6 +458,7 @@
             }).join('');
         }
         document.addEventListener('DOMContentLoaded', () => {
+            loadSiteTypes();
             loadConfigs();
             loadRecipients();
         });
