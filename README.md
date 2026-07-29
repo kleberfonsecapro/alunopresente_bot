@@ -394,7 +394,7 @@ O sistema utiliza uma arquitetura de **skills isoladas**, cada uma com responsab
 ### Autenticação
 - Sessão Django com cookies `HttpOnly` + `SameSite=Lax`
 - Login com **rate limiting** (10 tentativas/minuto por IP)
-- Timeout de sessão: **8 horas** (configurável)
+- Timeout de sessão: **10 minutos** (configurável via `SESSION_COOKIE_AGE`)
 - Sessão expira ao fechar o navegador
 
 ### Infraestrutura
