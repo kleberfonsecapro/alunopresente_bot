@@ -32,11 +32,5 @@ else:
     print(f'Senha do superusuário admin atualizada.')
 "
 
-echo "Iniciando scheduler preciso..."
-python manage.py scheduler &
-
-echo "Iniciando listener do Telegram (registro automático de usuários)..."
-python manage.py listen_telegram &
-
 echo "Iniciando servidor..."
 exec "$@"

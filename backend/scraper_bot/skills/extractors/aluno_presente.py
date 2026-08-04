@@ -135,3 +135,40 @@ class AlunoPresenteExtractor(SiteExtractor):
         )
         if not result['success']:
             raise RuntimeError(f'Re-login automático falhou: {result["message"]}')
+
+    async def extract_via_playwright(
+        self, url: str, fields: list[ExtractionContract]
+    ) -> dict:
+        extracted = {}
+        from scraper_bot.skills.auth_skill import get_storage_state
+        from playwright.async_api import async_playwright
+        
+        storage = get_storage_state()
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            ctx = await browser.new_context(storage_state=storage or None)
+            page = await ctx.new_page()
+            try:
+                await page.goto(url, wait_until='networkidle', timeout=60000)
+
+                for field in fields:
+                    try:
+                        if field.selector:
+                            el = await page.query_selector(field.selector)
+                            if el:
+                                extracted[field.field_name] = await el.inner_text()
+                            else:
+                                extracted[field.field_name] = None
+                        else:
+                            extracted[field.field_name] = page.url
+                    except Exception as e:
+                        extracted[field.field_name] = None
+            finally:
+                await browser.close()
+
+        from datetime import datetime
+        return {
+            'url': url,
+            'extracted_at': datetime.now().isoformat(),
+            'data': extracted,
+        }

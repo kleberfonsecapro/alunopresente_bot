@@ -34,14 +34,19 @@ class ExtractionSkill:
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 401:
                     logger.info('Token expirado para %s, relogando...', site_type)
-                    await extractor.relogin()
-
-                    token = extractor.get_token()
-                    if token:
-                        result = await extractor.extract_via_api(url, fields, token)
-                        if result:
-                            return result
-                raise
+                    try:
+                        await extractor.relogin()
+                        token = extractor.get_token()
+                        if token:
+                            result = await extractor.extract_via_api(url, fields, token)
+                            if result:
+                                return result
+                    except Exception as relogin_error:
+                        logger.warning('Relogin falhou para %s: %s', site_type, relogin_error)
+                else:
+                    logger.warning('Erro HTTP na extração via API: %s', e)
+            except Exception as e:
+                logger.warning('Erro inesperado na extração via API: %s', e)
 
         return await extractor.extract_via_playwright(url, fields)
 

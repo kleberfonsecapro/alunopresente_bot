@@ -1,15 +1,28 @@
 import os
+import asyncio
 
 import httpx
 from jinja2 import Template
 
 TELEGRAM_API_URL = "https://api.telegram.org/bot{token}/sendMessage"
+TELEGRAM_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
+MAX_CONCURRENT_SENDS = 10
 
 
 class MessagingSkill:
 
     def __init__(self, bot_token: str | None = None):
         self.bot_token = bot_token or os.getenv('TELEGRAM_BOT_TOKEN')
+        self._client: httpx.AsyncClient | None = None
+
+    async def _get_client(self) -> httpx.AsyncClient:
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(timeout=TELEGRAM_TIMEOUT)
+        return self._client
+
+    async def close(self) -> None:
+        if self._client and not self._client.is_closed:
+            await self._client.aclose()
 
     def apply_template(self, template_body: str, extracted_data: dict) -> str:
         template = Template(template_body)
@@ -19,13 +32,16 @@ class MessagingSkill:
         if not self.bot_token:
             return False
         url = TELEGRAM_API_URL.format(token=self.bot_token)
-        async with httpx.AsyncClient() as client:
+        client = await self._get_client()
+        try:
             response = await client.post(url, json={
                 'chat_id': chat_id,
                 'text': text,
                 'parse_mode': 'Markdown',
             })
             return response.is_success
+        except httpx.HTTPError:
+            return False
 
     async def send_message(self, platform: str, identifier: str, message_body: str) -> str | None:
         if platform == 'telegram':
@@ -40,20 +56,37 @@ class MessagingSkill:
         recipients: list[dict],
     ) -> dict:
         message_body = self.apply_template(template_body, extracted_data)
+        semaphore = asyncio.Semaphore(MAX_CONCURRENT_SENDS)
+
+        async def _send_one(recipient: dict) -> tuple[bool, str]:
+            platform = recipient['platform']
+            identifier = recipient['identifier']
+            async with semaphore:
+                error = await self.send_message(platform, identifier, message_body)
+                if error is None:
+                    return True, f"✓ Enviado para {identifier} via {platform}"
+                return False, f"✗ {error}"
+
+        results = await asyncio.gather(
+            *[_send_one(r) for r in recipients],
+            return_exceptions=True
+        )
+
         sent = 0
         failed = 0
         details = []
 
-        for recipient in recipients:
-            platform = recipient['platform']
-            identifier = recipient['identifier']
-            error = await self.send_message(platform, identifier, message_body)
-            if error is None:
-                sent += 1
-                details.append(f"✓ Enviado para {identifier} via {platform}")
-            else:
+        for result in results:
+            if isinstance(result, Exception):
                 failed += 1
-                details.append(f"✗ {error}")
+                details.append(f"✗ Erro inesperado: {result}")
+            else:
+                success, detail = result
+                if success:
+                    sent += 1
+                else:
+                    failed += 1
+                details.append(detail)
 
         return {
             'sent_count': sent,

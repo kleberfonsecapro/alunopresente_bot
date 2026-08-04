@@ -30,6 +30,36 @@ services:
     depends_on:
       - db
 
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: scraper_scheduler
+    restart: unless-stopped
+    command: python manage.py run_scheduler
+    volumes:
+      - ./backend:/app
+      - playwright_session:/app/playwright_state
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+  listener:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: scraper_listener
+    restart: unless-stopped
+    command: python manage.py listen_telegram
+    volumes:
+      - ./backend:/app
+      - playwright_session:/app/playwright_state
+    env_file:
+      - .env
+    depends_on:
+      - db
+
   nginx:
     image: nginx:alpine
     container_name: scraper_nginx

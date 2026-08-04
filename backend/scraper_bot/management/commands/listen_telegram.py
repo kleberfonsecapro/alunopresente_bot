@@ -1,6 +1,7 @@
 import asyncio
 import os
 import time
+from pathlib import Path
 
 import httpx
 from django.core.management.base import BaseCommand
@@ -11,6 +12,8 @@ from scraper_bot.services import BotOrchestrator
 
 TELEGRAM_API = 'https://api.telegram.org/bot{token}/{method}'
 POLL_TIMEOUT = 30
+MAX_SEND_ATTEMPTS = 3
+OFFSET_FILE = Path('/app/playwright_state/telegram_offset.txt')
 
 
 class Command(BaseCommand):
@@ -24,65 +27,85 @@ class Command(BaseCommand):
 
         self._set_commands(token)
 
-        offset = 0
-        self.stdout.write(self.style.SUCCESS('Escutando Telegram...'))
+        offset = self._load_offset()
+        self.stdout.write(self.style.SUCCESS(
+            f'Escutando Telegram (resumindo do offset {offset})...'
+        ))
 
         while True:
             try:
                 resp = httpx.get(
                     TELEGRAM_API.format(token=token, method='getUpdates'),
                     params={'offset': offset, 'timeout': POLL_TIMEOUT},
-                    timeout=POLL_TIMEOUT + 5,
+                    timeout=POLL_TIMEOUT + 10,
                 )
+                resp.raise_for_status()
                 data = resp.json()
+
                 if not data.get('ok'):
+                    self.stdout.write(self.style.WARNING(
+                        f'getUpdates falhou: {data.get("description", "erro desconhecido")}'
+                    ))
+                    time.sleep(5)
                     continue
 
                 for update in data['result']:
                     offset = update['update_id'] + 1
-                    msg = update.get('message')
-                    if not msg:
-                        continue
-
-                    chat = msg.get('chat', {})
-                    chat_id = str(chat.get('id'))
-                    text = msg.get('text', '')
-
-                    cmd = text.split()[0].lower()
-
-                    if cmd == '/start':
-                        first_name = chat.get('first_name', 'Usuário')
-                        self._register_user(chat_id, first_name)
-                        self._send_welcome(token, chat_id)
-                    elif cmd == '/stop':
-                        self._deactivate_user(chat_id)
-                        self._send_goodbye(token, chat_id)
-                    elif cmd in ('/help', '/ajuda', '/comandos'):
-                        self._send_help(token, chat_id)
-                    elif cmd == '/status':
-                        self._send_status_info(token, chat_id)
-                    elif cmd == '/configuracoes':
-                        self._send_configs(token, chat_id)
-                    elif cmd == '/ultima_execucao':
-                        self._send_last_execution(token, chat_id)
-                    elif cmd in ('/relatorio_completo', '/completo'):
-                        self._send_status(token, chat_id, 'Gerando relatório completo...')
-                        self._run_report(token, chat_id, template_id=4)
-                    elif cmd in ('/resumo_secretaria',):
-                        self._send_status(token, chat_id, 'Gerando resumo...')
-                        self._run_report(token, chat_id, template_id=1)
-                    elif cmd in ('/resumo_diario', '/diario'):
-                        self._send_status(token, chat_id, 'Gerando resumo diário...')
-                        self._run_report(token, chat_id, template_id=3)
-                    elif cmd in ('/relatorio',):
-                        self._send_status(token, chat_id, 'Gerando relatório...')
-                        tid = BotConfig.objects.filter(is_active=True).first()
-                        tid = tid.template_id if tid else None
-                        self._run_report(token, chat_id, template_id=tid)
+                    try:
+                        self._handle_update(token, update)
+                    except Exception as e:
+                        self.stdout.write(self.style.ERROR(
+                            f'Erro ao processar update {update.get("update_id")}: {e}'
+                        ))
+                    finally:
+                        self._save_offset(offset)
 
             except Exception as e:
                 self.stdout.write(self.style.WARNING(f'Erro: {e}'))
                 time.sleep(5)
+
+    def _handle_update(self, token: str, update: dict):
+        msg = update.get('message')
+        if not msg:
+            return
+
+        chat = msg.get('chat', {})
+        chat_id = str(chat.get('id'))
+        text = msg.get('text') or ''
+        if not text:
+            return
+
+        cmd = text.split()[0].lower()
+
+        if cmd == '/start':
+            first_name = chat.get('first_name', 'Usuário')
+            self._register_user(chat_id, first_name)
+            self._send_welcome(token, chat_id)
+        elif cmd == '/stop':
+            self._deactivate_user(chat_id)
+            self._send_goodbye(token, chat_id)
+        elif cmd in ('/help', '/ajuda', '/comandos'):
+            self._send_help(token, chat_id)
+        elif cmd == '/status':
+            self._send_status_info(token, chat_id)
+        elif cmd == '/configuracoes':
+            self._send_configs(token, chat_id)
+        elif cmd == '/ultima_execucao':
+            self._send_last_execution(token, chat_id)
+        elif cmd in ('/relatorio_completo', '/completo'):
+            self._send_status(token, chat_id, 'Gerando relatório completo...')
+            self._run_report(token, chat_id, template_id=4)
+        elif cmd in ('/resumo_secretaria',):
+            self._send_status(token, chat_id, 'Gerando resumo...')
+            self._run_report(token, chat_id, template_id=1)
+        elif cmd in ('/resumo_diario', '/diario'):
+            self._send_status(token, chat_id, 'Gerando resumo diário...')
+            self._run_report(token, chat_id, template_id=3)
+        elif cmd in ('/relatorio',):
+            self._send_status(token, chat_id, 'Gerando relatório...')
+            tid = BotConfig.objects.filter(is_active=True).first()
+            tid = tid.template_id if tid else None
+            self._run_report(token, chat_id, template_id=tid)
 
     def _register_user(self, chat_id: str, name: str):
         obj, created = Recipient.objects.get_or_create(
@@ -122,18 +145,46 @@ class Command(BaseCommand):
             '❌ */stop* — Cancelar recebimento automático\n\n'
             'Envie */help* a qualquer momento para ver esta mensagem.'
         )
-        self._send_telegram(token, chat_id, text)
+        if not self._send_telegram(token, chat_id, text):
+            self.stdout.write(self.style.ERROR(
+                f'Falha ao enviar boas-vindas para {chat_id}'
+            ))
 
     def _send_goodbye(self, token: str, chat_id: str):
         text = 'Você não receberá mais os relatórios. Use /start para reativar.'
         self._send_telegram(token, chat_id, text)
 
-    def _send_telegram(self, token: str, chat_id: str, text: str):
-        httpx.post(
-            TELEGRAM_API.format(token=token, method='sendMessage'),
-            json={'chat_id': chat_id, 'text': text, 'parse_mode': 'Markdown'},
-            timeout=10,
-        )
+    def _send_telegram(self, token: str, chat_id: str, text: str) -> bool:
+        url = TELEGRAM_API.format(token=token, method='sendMessage')
+        payload = {'chat_id': chat_id, 'text': text, 'parse_mode': 'Markdown'}
+
+        for attempt in range(MAX_SEND_ATTEMPTS):
+            try:
+                resp = httpx.post(url, json=payload, timeout=10)
+                data = resp.json()
+                if resp.status_code == 200 and data.get('ok'):
+                    return True
+
+                description = data.get('description', '') if isinstance(data, dict) else ''
+                self.stdout.write(self.style.WARNING(
+                    f'Telegram recusou envio para {chat_id}: '
+                    f'HTTP {resp.status_code} - {description}'
+                ))
+                if (
+                    resp.status_code == 400
+                    and 'parse' in description.lower()
+                    and payload.get('parse_mode')
+                ):
+                    payload = {k: v for k, v in payload.items() if k != 'parse_mode'}
+                    continue
+                return False
+            except httpx.HTTPError as e:
+                self.stdout.write(self.style.WARNING(
+                    f'Falha de rede ao enviar para {chat_id} '
+                    f'(tentativa {attempt + 1}/{MAX_SEND_ATTEMPTS}): {e}'
+                ))
+                time.sleep(2 * (attempt + 1))
+        return False
 
     def _send_status(self, token: str, chat_id: str, text: str):
         self._send_telegram(token, chat_id, text)
@@ -250,12 +301,19 @@ class Command(BaseCommand):
             {'command': 'stop', 'description': 'Cancelar recebimento automático'},
         ]
         try:
-            httpx.post(
+            resp = httpx.post(
                 TELEGRAM_API.format(token=token, method='setMyCommands'),
                 json={'commands': commands},
                 timeout=10,
             )
-            self.stdout.write(self.style.SUCCESS('Comandos registrados no Telegram'))
+            data = resp.json()
+            if resp.status_code == 200 and data.get('ok'):
+                self.stdout.write(self.style.SUCCESS('Comandos registrados no Telegram'))
+            else:
+                self.stdout.write(self.style.WARNING(
+                    f'Falha ao registrar comandos: HTTP {resp.status_code} '
+                    f'- {data.get("description", "")}'
+                ))
         except Exception as e:
             self.stdout.write(self.style.WARNING(f'Erro ao registrar comandos: {e}'))
 
@@ -298,3 +356,18 @@ class Command(BaseCommand):
         except Exception as e:
             self._send_status(token, chat_id, f'Erro ao gerar relatório: {e}')
             self.stdout.write(self.style.ERROR(f'Erro no relatório: {e}'))
+
+    def _load_offset(self) -> int:
+        try:
+            if OFFSET_FILE.exists():
+                return int(OFFSET_FILE.read_text().strip())
+        except (ValueError, OSError):
+            pass
+        return 0
+
+    def _save_offset(self, offset: int) -> None:
+        try:
+            OFFSET_FILE.parent.mkdir(parents=True, exist_ok=True)
+            OFFSET_FILE.write_text(str(offset))
+        except OSError as e:
+            self.stdout.write(self.style.WARNING(f'Não foi possível salvar offset: {e}'))
