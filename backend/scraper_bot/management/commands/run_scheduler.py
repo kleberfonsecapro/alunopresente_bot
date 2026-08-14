@@ -4,7 +4,7 @@ import time
 
 from django.core.management.base import BaseCommand
 
-from scraper_bot.scheduler import start_scheduler, shutdown_scheduler
+from scraper_bot.scheduler import start_scheduler, shutdown_scheduler, sync_jobs_from_db
 
 
 class Command(BaseCommand):
@@ -26,6 +26,12 @@ class Command(BaseCommand):
         try:
             while True:
                 time.sleep(60)
+                try:
+                    sync_jobs_from_db()
+                except Exception as e:
+                    self.stdout.write(self.style.ERROR(
+                        f'Erro ao sincronizar jobs: {e}'
+                    ))
                 active_jobs = len(scheduler.get_jobs())
                 self.stdout.write(f"[heartbeat] {active_jobs} jobs agendados")
         except KeyboardInterrupt:

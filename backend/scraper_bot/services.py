@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from datetime import datetime, timedelta
 
 from asgiref.sync import sync_to_async
@@ -15,10 +17,14 @@ from scraper_bot.skills.navigation_skill import NavigationSkill
 from scraper_bot.skills.extract_skill import ExtractionSkill
 from scraper_bot.skills.messaging_skill import MessagingSkill
 
+logger = logging.getLogger(__name__)
+
 
 class BotOrchestrator:
 
-    def __init__(self):
+    def __init__(self, max_retries: int = 2, retry_backoff_sec: int = 5):
+        self.max_retries = max(1, max_retries)
+        self.retry_backoff_sec = max(0, retry_backoff_sec)
         self.navigation = NavigationSkill()
         self.extraction = ExtractionSkill()
         self.messaging = MessagingSkill()
@@ -91,10 +97,9 @@ class BotOrchestrator:
                 else:
                     fields.append(ExtractionContract(field_name=str(f)))
 
-            extraction_result = await self.extraction.extract(
-                url=config.target_url,
+            extraction_result = await self._extract_with_retry(
+                config=config,
                 fields=fields,
-                site_type=config.site_type,
             )
 
             now = timezone.localtime(timezone.now())
@@ -161,6 +166,27 @@ class BotOrchestrator:
                 error=str(e),
                 log_id=log.id,
             )
+
+    async def _extract_with_retry(self, config: BotConfig, fields: list[ExtractionContract]) -> dict:
+        last_error: Exception | None = None
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                return await self.extraction.extract(
+                    url=config.target_url,
+                    fields=fields,
+                    site_type=config.site_type,
+                )
+            except Exception as e:
+                last_error = e
+                logger.warning(
+                    'Extração falhou para config %s (tentativa %d/%d): %s',
+                    config.id, attempt, self.max_retries, e,
+                )
+                if attempt < self.max_retries:
+                    await asyncio.sleep(self.retry_backoff_sec * attempt)
+        if last_error is None:
+            raise RuntimeError('Nenhuma tentativa de extração foi executada')
+        raise last_error
 
     def _build_input(self, config: BotConfig) -> BotExecutionInput:
         recipients = list(Recipient.objects.filter(is_active=True).values_list('id', flat=True))

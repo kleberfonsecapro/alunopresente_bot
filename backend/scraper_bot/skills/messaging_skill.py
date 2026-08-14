@@ -7,6 +7,7 @@ from jinja2 import Template
 TELEGRAM_API_URL = "https://api.telegram.org/bot{token}/sendMessage"
 TELEGRAM_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
 MAX_CONCURRENT_SENDS = 10
+MAX_TELEGRAM_ATTEMPTS = 3
 
 
 class MessagingSkill:
@@ -33,15 +34,39 @@ class MessagingSkill:
             return False
         url = TELEGRAM_API_URL.format(token=self.bot_token)
         client = await self._get_client()
-        try:
-            response = await client.post(url, json={
-                'chat_id': chat_id,
-                'text': text,
-                'parse_mode': 'Markdown',
-            })
-            return response.is_success
-        except httpx.HTTPError:
-            return False
+        payload = {
+            'chat_id': chat_id,
+            'text': text,
+            'parse_mode': 'Markdown',
+        }
+        for attempt in range(1, MAX_TELEGRAM_ATTEMPTS + 1):
+            try:
+                response = await client.post(url, json=payload)
+                if response.is_success:
+                    return True
+
+                description = ''
+                try:
+                    body = response.json()
+                    description = str(body.get('description', ''))
+                except Exception:
+                    pass
+
+                if (
+                    response.status_code == 400
+                    and 'parse' in description.lower()
+                    and payload.get('parse_mode')
+                ):
+                    payload = {k: v for k, v in payload.items() if k != 'parse_mode'}
+                    continue
+
+                if 400 <= response.status_code < 500:
+                    return False
+            except httpx.HTTPError:
+                pass
+            if attempt < MAX_TELEGRAM_ATTEMPTS:
+                await asyncio.sleep(2 * attempt)
+        return False
 
     async def send_message(self, platform: str, identifier: str, message_body: str) -> str | None:
         if platform == 'telegram':
