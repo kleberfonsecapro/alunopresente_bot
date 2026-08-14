@@ -25,6 +25,12 @@ class ExtractionSkill:
         extractor = extractor_cls()
 
         token = extractor.get_token()
+        if not token and extractor.login_url:
+            try:
+                await extractor.relogin()
+                token = extractor.get_token()
+            except Exception as e:
+                logger.warning('Relogin inicial falhou para %s: %s', site_type, e)
 
         if token:
             try:

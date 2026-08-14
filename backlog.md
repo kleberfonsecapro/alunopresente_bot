@@ -33,10 +33,39 @@
 - [x] **BUG #4**: `extract_skill` propagava exceção do relogin em vez de fazer fallback para Playwright → **Corrigido: try/except no relogin com fallback garantido**
 - [x] **BUG #5**: Agendamento custom com drift e sem persistência → **Corrigido: APScheduler + DjangoJobStore (persistente, sem drift, misfire_grace_time=300s)**
 - [x] **BUG #6**: Boas-vindas do `/start` não aparecia → **Causas: dois listeners concorrentes no mesmo token (backend + scheduler via entrypoint `&`), update marcado como lido antes do processamento (`offset` avançado antes do envio) e rede instável com `sendMessage` silencioso. Corrigido: serviço Docker dedicado (`scraper_listener`) com um único poller, processamento isolado por update, offset persistido em volume (`telegram_offset.txt`), `sendMessage` com verificação de resposta + 3 retries com backoff e fallback sem Markdown.**
+- [x] **BUG #7**: Fallback Playwright produzia **dados inúteis com `success=True`** → **Sintoma: sem `storage_state.json` (sessão ausente/expirou), `get_token()` retornava `None`, o caminho da API era pulado e o fallback Playwright gravava `page.url` como valor de TODOS os campos (52 campos = URL da tela de login), registrando sucesso. Corrigido em 3 frentes: (1) `ExtractSkill.extract` agora tenta `relogin()` inicial quando não há token e o site define `login_url`, obtendo token antes de cair no fallback; (2) `SiteExtractor` ganhou helpers `_ensure_authenticated_page`/`_is_login_page` que detectam redirect para login, relogam e recriam a página (falha explícita com `RuntimeError` se o login persistir); (3) campo sem selector agora **levanta erro claro** em vez de retornar `page.url` (genérico retorna `None` honesto). +9 testes unitários (total 61). Validação real: preview passou a extrair métricas corretas após re-login automático.**
 
 ## Pendentes
 
-- [ ] Testes automatizados (pytest) para scheduler, extractors, messaging
+- [x] Testes automatizados (Django test runner) para scheduler, extractors, messaging, services
 - [ ] CI/CD pipeline (lint, typecheck, test no GitHub Actions)
 - [ ] Monitoramento: health check endpoint + métricas Prometheus
-- [ ] Documentação de API (Swagger/OpenAPI via Django Ninja)
+- [x] Documentação de API (Swagger/OpenAPI via Django Ninja em `/api/docs`)
+
+## Análise de Código — 14/08/2026
+
+### Verificado (já resolvido / confirmado)
+
+- [x] Scheduler como serviço Docker dedicado (`scraper_scheduler`) com APScheduler + `DjangoJobStore` persistente
+- [x] Reconciliação de jobs: `sync_jobs_from_db()` no `run_scheduler` corrige configs editadas/desativadas sem depender só do sinal
+- [x] Alertas de falha do agendamento via Telegram (`_notify_failure` → `TELEGRAM_ADMIN_CHAT_ID` ou destinatários ativos)
+- [x] Arquitetura de extratores por plugin (registry): `aluno_presente` e `generic`, com fallback Playwright
+- [x] `list_site_types` exposto na API (`/api/site-types/`)
+- [x] Testes presentes: `test_scheduler`, `test_messaging`, `test_services`, `test_extractors`, `test_security` (rodar com `manage.py test`)
+- [x] Re-login automático no 401 com fallback garantido para Playwright
+- [x] Offset do listener Telegram persistido em volume (`telegram_offset.txt`), um único poller
+- [x] **BUG #7 corrigido**: fallback Playwright garante sessão autenticada (`_ensure_authenticated_page`), relogin inicial para obter token e erro claro em campo sem selector (sem `page.url` silencioso)
+- [x] Validação ao vivo em 14/08/2026: preview (`/api/execute/`) passou a extrair métricas reais (presentes/ausentes/alimentados) após re-login automático; `storage_state.json` regenerado com `aluno-presente-token`
+- [x] 61/61 testes passando (18 de segurança), `manage.py check` sem issues
+
+### Novos itens para o backlog (pendências encontradas na análise)
+
+- [ ] **BUG**: IDs de template hardcoded no listener (`listen_telegram.py:97,100,103`) — quebra se o seed mudar; buscar pelo nome (`MessageTemplate.objects.get(name=...)`)
+- [ ] **SEGURANÇA**: `verify=False` no `httpx.AsyncClient` de `extractors/aluno_presente.py:56` — desativa verificação TLS; substituir por CA confiável ou `ssl` context custom
+- [ ] **CONTRATO**: `BotConfigOutput.extraction_fields` tipado como `list[str]`, mas o model/schema aceita dicts (`{"field_name", "selector"}`) — alinhar contrato Pydantic
+- [ ] **PERF**: `/api/stats/` calcula agregações em Python (loop) — migrar para aggregates do ORM (`Avg`, `Sum`, `TruncDate`)
+- [ ] **REFAC**: duplicação de `list_configs` e `_config_to_dict` em `endpoints.py` — unificar
+- [ ] **OPS**: `CSRF_TRUSTED_ORIGINS` só em `settings.py` com IP fixo `10.62.30.165`; mover para `.env`/`.env.example` com nota de porta
+- [ ] **ROBUSTEZ**: `_detect_site_type` em `extract_skill.py` usa substring `'alunopresente'` — usar `matches_url()` do registry para novos sites
+- [ ] **QUALIDADE**: rodar testes via `manage.py test scraper_bot.tests` no CI; avaliar migração para pytest + cobertura (coverage.py)
+- [ ] **OBS**: `extract_via_api` formata métricas como strings pt-BR já renderizadas; manter contratos tipados (int/float) e formatar só no template
