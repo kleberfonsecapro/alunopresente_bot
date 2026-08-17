@@ -110,8 +110,6 @@ class Command(BaseCommand):
             args = text.split(maxsplit=1)
             period = args[1].upper() if len(args) > 1 else None
             self._list_school_units(token, chat_id, period=period)
-        elif cmd == '/periodos':
-            self._list_periods(token, chat_id)
         elif cmd == '/unidade':
             args = text.split(maxsplit=1)
             query = args[1] if len(args) > 1 else ''
@@ -151,7 +149,6 @@ class Command(BaseCommand):
             '📅 */resumo_diario* — Resumo Diário\n'
             '🏫 */unidades* — Listar todas as escolas\n'
             '🏫 */unidades matutino* — Filtrar por período\n'
-            '📅 */periodos* — Listar períodos disponíveis\n'
             '🔍 */unidade <nome>* — Consultar escola por nome\n'
             'ℹ️ */status* — Status do bot\n'
             '⚙️ */configuracoes* — Configurações ativas\n'
@@ -312,7 +309,6 @@ class Command(BaseCommand):
             {'command': 'resumo_diario', 'description': 'Resumo Diário'},
             {'command': 'unidades', 'description': 'Listar escolas (filtro: /unidades matutino)'},
             {'command': 'unidade', 'description': 'Consultar escola por nome'},
-            {'command': 'periodos', 'description': 'Listar períodos disponíveis'},
             {'command': 'status', 'description': 'Status do bot'},
             {'command': 'configuracoes', 'description': 'Configurações ativas'},
             {'command': 'ultima_execucao', 'description': 'Última execução'},
@@ -415,24 +411,6 @@ class Command(BaseCommand):
             text = text[:3997] + '...'
 
         self._send_telegram(token, chat_id, text)
-
-    def _list_periods(self, token: str, chat_id: str):
-        from scraper_bot.models import UnitPeriod
-        from collections import Counter
-
-        periods = Counter(
-            UnitPeriod.objects.values_list('period', flat=True)
-        )
-        if not periods:
-            self._send_telegram(token, chat_id, 'Nenhum período cadastrado. Execute /sync_periods primeiro.')
-            return
-
-        lines = ['*Períodos Disponíveis*\n']
-        for period, count in sorted(periods.items()):
-            lines.append(f'• *{period}* — {count} escolas')
-        lines.append('\nUse `/unidades <período>` para filtrar.')
-
-        self._send_telegram(token, chat_id, '\n'.join(lines))
 
     def _query_school_unit(self, token: str, chat_id: str, query: str):
         if not query.strip():
