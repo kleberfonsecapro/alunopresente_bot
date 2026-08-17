@@ -115,3 +115,38 @@ class ExecutionLog(models.Model):
         verbose_name = "Histórico de Execução"
         verbose_name_plural = "Históricos de Execução"
         ordering = ['-started_at']
+
+
+class UnitPeriod(models.Model):
+    PERIOD_CHOICES = [
+        ('MATUTINO', 'Matutino'),
+        ('VESPERTINO', 'Vespertino'),
+        ('INTEGRAL', 'Integral'),
+        ('NOTURNO', 'Noturno'),
+    ]
+
+    unit_id = models.IntegerField(
+        help_text="ID da unidade escolar na API Aluno Presente"
+    )
+    unit_name = models.CharField(
+        max_length=255,
+        help_text="Nome da unidade escolar"
+    )
+    period = models.CharField(
+        max_length=20,
+        choices=PERIOD_CHOICES,
+        help_text="Período de funcionamento da unidade"
+    )
+    synced_at = models.DateTimeField(
+        auto_now=True,
+        help_text="Última sincronização com o dashboard"
+    )
+
+    def __str__(self):
+        return f"{self.unit_name} ({self.period})"
+
+    class Meta:
+        verbose_name = "Período da Unidade"
+        verbose_name_plural = "Períodos das Unidades"
+        unique_together = ['unit_id', 'period']
+        ordering = ['period', 'unit_name']

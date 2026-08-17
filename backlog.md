@@ -32,6 +32,13 @@
 - [x] Endpoint `GET /api/school-unities/` lista todas as unidades disponíveis
 - [x] Schema `SchoolUnitOutput` para resposta da API
 - [x] Migration `0007_add_school_unit_ids_to_botconfig`
+- [x] Filtro de período por unidade escolar (cache via API de turmas)
+- [x] Modelo `UnitPeriod` (unit_id, period, unit_name) com migration `0008`
+- [x] Command `sync_unit_periods` — sincroniza períodos via POST `/api/turmas/filtrar`
+- [x] `_fetch_api_data()` filtra por período usando `UnitPeriod` do banco
+- [x] Comando `/periodos` no Telegram — lista períodos disponíveis
+- [x] Comando `/unidades <período>` — filtra escolas por período (MATUTINO, VESPERTINO, INTEGRAL, NOTURNO)
+- [x] Schema `BotExecutionInput.period` para suporte a filtro via API
 
 ## Correções Críticas (Bugfixes)
 

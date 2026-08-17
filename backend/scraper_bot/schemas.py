@@ -75,6 +75,10 @@ class BotExecutionInput(BaseModel):
         default=None,
         description="ID de uma unidade escolar específica para consulta avulsa"
     )
+    period: str | None = Field(
+        default=None,
+        description="Filtro de período (MATUTINO, VESPERTINO, INTEGRAL, NOTURNO)"
+    )
 
 
 class BotConfigInput(BaseModel):

@@ -21,6 +21,7 @@ class ExtractionSkill:
         site_type: str | None = None,
         unit_id: int | None = None,
         unit_ids: list[int] | None = None,
+        period: str | None = None,
     ) -> dict:
         site_type = site_type or self._detect_site_type(url)
         extractor_cls = get_extractor(site_type)
@@ -44,7 +45,7 @@ class ExtractionSkill:
 
         if token:
             try:
-                result = await extractor.extract_via_api(url, fields, token, unit_ids=unit_ids)
+                result = await extractor.extract_via_api(url, fields, token, unit_ids=unit_ids, period=period)
                 if result:
                     return result
             except httpx.HTTPStatusError as e:
@@ -54,7 +55,7 @@ class ExtractionSkill:
                         await extractor.relogin()
                         token = extractor.get_token()
                         if token:
-                            result = await extractor.extract_via_api(url, fields, token, unit_ids=unit_ids)
+                            result = await extractor.extract_via_api(url, fields, token, unit_ids=unit_ids, period=period)
                             if result:
                                 return result
                     except Exception as relogin_error:

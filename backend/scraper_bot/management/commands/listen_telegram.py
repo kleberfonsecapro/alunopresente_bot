@@ -107,7 +107,11 @@ class Command(BaseCommand):
             tid = tid.template_id if tid else None
             self._run_report(token, chat_id, template_id=tid)
         elif cmd == '/unidades':
-            self._list_school_units(token, chat_id)
+            args = text.split(maxsplit=1)
+            period = args[1].upper() if len(args) > 1 else None
+            self._list_school_units(token, chat_id, period=period)
+        elif cmd == '/periodos':
+            self._list_periods(token, chat_id)
         elif cmd == '/unidade':
             args = text.split(maxsplit=1)
             query = args[1] if len(args) > 1 else ''
@@ -150,6 +154,8 @@ class Command(BaseCommand):
             '📋 */resumo_secretaria* — Resumo da Secretaria\n'
             '📅 */resumo_diario* — Resumo Diário\n'
             '🏫 */unidades* — Listar todas as escolas\n'
+            '🏫 */unidades matutino* — Filtrar por período\n'
+            '📅 */periodos* — Listar períodos disponíveis\n'
             '🔍 */unidade <nome>* — Consultar escola por nome\n'
             '🔢 */unidade_id <ID>* — Consultar escola por ID\n'
             'ℹ️ */status* — Status do bot\n'
@@ -310,9 +316,10 @@ class Command(BaseCommand):
             {'command': 'relatorio_completo', 'description': 'Relatório Completo'},
             {'command': 'resumo_secretaria', 'description': 'Resumo da Secretaria'},
             {'command': 'resumo_diario', 'description': 'Resumo Diário'},
-            {'command': 'unidades', 'description': 'Listar todas as escolas'},
+            {'command': 'unidades', 'description': 'Listar escolas (filtro: /unidades matutino)'},
             {'command': 'unidade', 'description': 'Consultar escola por nome'},
             {'command': 'unidade_id', 'description': 'Consultar escola por ID'},
+            {'command': 'periodos', 'description': 'Listar períodos disponíveis'},
             {'command': 'status', 'description': 'Status do bot'},
             {'command': 'configuracoes', 'description': 'Configurações ativas'},
             {'command': 'ultima_execucao', 'description': 'Última execução'},
@@ -377,7 +384,8 @@ class Command(BaseCommand):
             self._send_status(token, chat_id, f'Erro ao gerar relatório: {e}')
             self.stdout.write(self.style.ERROR(f'Erro no relatório: {e}'))
 
-    def _list_school_units(self, token: str, chat_id: str):
+    def _list_school_units(self, token: str, chat_id: str, period: str | None = None):
+        from scraper_bot.models import UnitPeriod
         from scraper_bot.skills.extractors.aluno_presente import AlunoPresenteExtractor
 
         extractor = AlunoPresenteExtractor()
@@ -392,7 +400,20 @@ class Command(BaseCommand):
             self._send_telegram(token, chat_id, f'Erro ao buscar unidades: {e}')
             return
 
-        lines = [f'*Escolas Disponíveis ({len(units)} total)*\n']
+        if period:
+            valid = {'MATUTINO', 'VESPERTINO', 'INTEGRAL', 'NOTURNO'}
+            if period not in valid:
+                self._send_telegram(token, chat_id, f'Período inválido. Opções: {", ".join(sorted(valid))}')
+                return
+            period_unit_ids = set(
+                UnitPeriod.objects.filter(period=period).values_list('unit_id', flat=True)
+            )
+            units = [u for u in units if u['id'] in period_unit_ids]
+            title = f'Escolas — {period} ({len(units)} total)'
+        else:
+            title = f'Escolas Disponíveis ({len(units)} total)'
+
+        lines = [f'*{title}*\n']
         for u in units:
             lines.append(f'• `{u["id"]}` — {u["nome"]}')
 
@@ -401,6 +422,24 @@ class Command(BaseCommand):
             text = text[:3997] + '...'
 
         self._send_telegram(token, chat_id, text)
+
+    def _list_periods(self, token: str, chat_id: str):
+        from scraper_bot.models import UnitPeriod
+        from collections import Counter
+
+        periods = Counter(
+            UnitPeriod.objects.values_list('period', flat=True)
+        )
+        if not periods:
+            self._send_telegram(token, chat_id, 'Nenhum período cadastrado. Execute /sync_periods primeiro.')
+            return
+
+        lines = ['*Períodos Disponíveis*\n']
+        for period, count in sorted(periods.items()):
+            lines.append(f'• *{period}* — {count} escolas')
+        lines.append('\nUse `/unidades <período>` para filtrar.')
+
+        self._send_telegram(token, chat_id, '\n'.join(lines))
 
     def _query_school_unit(self, token: str, chat_id: str, query: str):
         if not query.strip():

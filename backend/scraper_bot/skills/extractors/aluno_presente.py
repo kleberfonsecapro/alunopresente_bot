@@ -111,9 +111,10 @@ class AlunoPresenteExtractor(SiteExtractor):
     async def extract_via_api(
         self, url: str, fields: list[ExtractionContract], token: str,
         unit_ids: list[int] | None = None,
+        period: str | None = None,
     ) -> dict:
         headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
-        data = await self._fetch_api_data(headers, unit_ids=unit_ids)
+        data = await self._fetch_api_data(headers, unit_ids=unit_ids, period=period)
 
         extracted = {}
         for field in fields:
@@ -126,7 +127,7 @@ class AlunoPresenteExtractor(SiteExtractor):
             'data': extracted,
         }
 
-    async def _fetch_api_data(self, headers: dict, unit_ids: list[int] | None = None) -> dict:
+    async def _fetch_api_data(self, headers: dict, unit_ids: list[int] | None = None, period: str | None = None) -> dict:
         today = datetime.now().strftime('%Y-%m-%d')
         async with httpx.AsyncClient(verify=False, timeout=30) as client:
             r1, r2, r3 = await asyncio.gather(
@@ -151,6 +152,13 @@ class AlunoPresenteExtractor(SiteExtractor):
 
         if unit_ids:
             unit_list = [u for u in unit_list if u['unidade_id'] in unit_ids]
+
+        if period:
+            from scraper_bot.models import UnitPeriod
+            period_unit_ids = set(
+                UnitPeriod.objects.filter(period=period).values_list('unit_id', flat=True)
+            )
+            unit_list = [u for u in unit_list if u['unidade_id'] in period_unit_ids]
 
         total_alunos = sum(u['total_alunos'] for u in unit_list) if unit_list else 0
         total_presentes = sum(u['alunos_presentes'] for u in unit_list) if unit_list else 0
