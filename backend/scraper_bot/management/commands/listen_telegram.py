@@ -106,6 +106,16 @@ class Command(BaseCommand):
             tid = BotConfig.objects.filter(is_active=True).first()
             tid = tid.template_id if tid else None
             self._run_report(token, chat_id, template_id=tid)
+        elif cmd == '/unidades':
+            self._list_school_units(token, chat_id)
+        elif cmd == '/unidade':
+            args = text.split(maxsplit=1)
+            query = args[1] if len(args) > 1 else ''
+            self._query_school_unit(token, chat_id, query)
+        elif cmd in ('/unidade_id', '/unidadeid'):
+            args = text.split(maxsplit=1)
+            unit_id_str = args[1] if len(args) > 1 else ''
+            self._query_school_unit_by_id(token, chat_id, unit_id_str)
 
     def _register_user(self, chat_id: str, name: str):
         obj, created = Recipient.objects.get_or_create(
@@ -139,6 +149,9 @@ class Command(BaseCommand):
             '📊 */relatorio_completo* — Relatório completo\n'
             '📋 */resumo_secretaria* — Resumo da Secretaria\n'
             '📅 */resumo_diario* — Resumo Diário\n'
+            '🏫 */unidades* — Listar todas as escolas\n'
+            '🔍 */unidade <nome>* — Consultar escola por nome\n'
+            '🔢 */unidade_id <ID>* — Consultar escola por ID\n'
             'ℹ️ */status* — Status do bot\n'
             '⚙️ */configuracoes* — Configurações ativas\n'
             '📝 */ultima_execucao* — Última execução\n'
@@ -195,6 +208,9 @@ class Command(BaseCommand):
             '📊 */relatorio_completo* — Relatório completo da Visão Secretaria\n'
             '📋 */resumo_secretaria* — Resumo da Secretaria\n'
             '📅 */resumo_diario* — Resumo diário\n'
+            '🏫 */unidades* — Listar todas as escolas disponíveis\n'
+            '🔍 */unidade <nome>* — Consultar dados de uma escola por nome\n'
+            '🔢 */unidade_id <ID>* — Consultar dados de uma escola por ID\n'
             'ℹ️ */status* — Status do bot (configs ativas, usuários, últimas execuções)\n'
             '⚙️ */configuracoes* — Lista as configurações ativas com horários\n'
             '📝 */ultima_execucao* — Detalhes da execução mais recente\n'
@@ -291,14 +307,17 @@ class Command(BaseCommand):
 
     def _set_commands(self, token: str):
         commands = [
-            {'command': 'relatorio_completo', 'description': 'Relatório Completo - Visão Secretaria'},
-            {'command': 'resumo_secretaria', 'description': 'Resumo da Visão Secretaria'},
+            {'command': 'relatorio_completo', 'description': 'Relatório Completo'},
+            {'command': 'resumo_secretaria', 'description': 'Resumo da Secretaria'},
             {'command': 'resumo_diario', 'description': 'Resumo Diário'},
-            {'command': 'status', 'description': 'Status do bot e saúde do sistema'},
-            {'command': 'configuracoes', 'description': 'Listar configurações ativas'},
-            {'command': 'ultima_execucao', 'description': 'Mostrar última execução'},
-            {'command': 'help', 'description': 'Lista completa de comandos'},
-            {'command': 'stop', 'description': 'Cancelar recebimento automático'},
+            {'command': 'unidades', 'description': 'Listar todas as escolas'},
+            {'command': 'unidade', 'description': 'Consultar escola por nome'},
+            {'command': 'unidade_id', 'description': 'Consultar escola por ID'},
+            {'command': 'status', 'description': 'Status do bot'},
+            {'command': 'configuracoes', 'description': 'Configurações ativas'},
+            {'command': 'ultima_execucao', 'description': 'Última execução'},
+            {'command': 'help', 'description': 'Lista de comandos'},
+            {'command': 'stop', 'description': 'Cancelar automático'},
         ]
         try:
             resp = httpx.post(
@@ -317,7 +336,7 @@ class Command(BaseCommand):
         except Exception as e:
             self.stdout.write(self.style.WARNING(f'Erro ao registrar comandos: {e}'))
 
-    def _run_report(self, token: str, chat_id: str, template_id: int | None = None):
+    def _run_report(self, token: str, chat_id: str, template_id: int | None = None, unit_id: int | None = None):
         config = BotConfig.objects.filter(is_active=True).first()
         if not config:
             self._send_status(token, chat_id, 'Nenhuma configuração ativa encontrada.')
@@ -339,6 +358,7 @@ class Command(BaseCommand):
             recipient_ids=[recipient.id],
             skip_time_check=True,
             trigger='telegram',
+            unit_id=unit_id,
         )
 
         async def _exec():
@@ -356,6 +376,82 @@ class Command(BaseCommand):
         except Exception as e:
             self._send_status(token, chat_id, f'Erro ao gerar relatório: {e}')
             self.stdout.write(self.style.ERROR(f'Erro no relatório: {e}'))
+
+    def _list_school_units(self, token: str, chat_id: str):
+        from scraper_bot.skills.extractors.aluno_presente import AlunoPresenteExtractor
+
+        extractor = AlunoPresenteExtractor()
+        t = extractor.get_token()
+        if not t:
+            self._send_telegram(token, chat_id, 'Sessão expirada. Use /relogin para renovar.')
+            return
+
+        try:
+            units = asyncio.run(extractor.list_school_units(t))
+        except Exception as e:
+            self._send_telegram(token, chat_id, f'Erro ao buscar unidades: {e}')
+            return
+
+        lines = [f'*Escolas Disponíveis ({len(units)} total)*\n']
+        for u in units:
+            lines.append(f'• `{u["id"]}` — {u["nome"]}')
+
+        text = '\n'.join(lines)
+        if len(text) > 4000:
+            text = text[:3997] + '...'
+
+        self._send_telegram(token, chat_id, text)
+
+    def _query_school_unit(self, token: str, chat_id: str, query: str):
+        if not query.strip():
+            self._send_telegram(token, chat_id, 'Uso: /unidade <nome da escola>')
+            return
+
+        from scraper_bot.skills.extractors.aluno_presente import AlunoPresenteExtractor
+
+        extractor = AlunoPresenteExtractor()
+        t = extractor.get_token()
+        if not t:
+            self._send_telegram(token, chat_id, 'Sessão expirada. Use /relogin para renovar.')
+            return
+
+        try:
+            units = asyncio.run(extractor.list_school_units(t))
+        except Exception as e:
+            self._send_telegram(token, chat_id, f'Erro ao buscar unidades: {e}')
+            return
+
+        query_lower = query.lower()
+        matches = [u for u in units if query_lower in u['nome'].lower()]
+
+        if not matches:
+            self._send_telegram(token, chat_id, f'Nenhuma escola encontrada com "{query}".')
+            return
+
+        if len(matches) == 1:
+            unit_id = matches[0]['id']
+            self._send_status(token, chat_id, f'Consultando {matches[0]["nome"]}...')
+            self._run_report(token, chat_id, template_id=7, unit_id=unit_id)
+            return
+
+        lines = [f'*{len(matches)} escolas encontradas para "{query}":*\n']
+        for u in matches[:20]:
+            lines.append(f'• `{u["id"]}` — {u["nome"]}')
+        if len(matches) > 20:
+            lines.append(f'\n... e mais {len(matches) - 20} escolas.')
+        lines.append('\nUse /unidade_id <ID> para consultar uma específica.')
+
+        self._send_telegram(token, chat_id, '\n'.join(lines))
+
+    def _query_school_unit_by_id(self, token: str, chat_id: str, unit_id_str: str):
+        try:
+            unit_id = int(unit_id_str)
+        except (ValueError, TypeError):
+            self._send_telegram(token, chat_id, 'Uso: /unidade_id <número>\nEx: /unidade_id 103')
+            return
+
+        self._send_status(token, chat_id, f'Consultando unidade ID {unit_id}...')
+        self._run_report(token, chat_id, template_id=7, unit_id=unit_id)
 
     def _load_offset(self) -> int:
         try:

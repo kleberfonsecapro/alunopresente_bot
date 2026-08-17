@@ -24,6 +24,14 @@
 - [x] Mais comandos no listener Telegram
 - [x] Testar extração sem envio (modo preview)
 - [x] Persistir token de autenticação em volume Docker (playwright_session)
+- [x] Consulta individual por unidade escolar via Telegram (`/unidades`, `/unidade <nome>`, `/unidade_id <id>`)
+- [x] Campo `school_unit_ids` no BotConfig para filtrar unidades na extração
+- [x] Método `list_school_units()` no AlunoPresenteExtractor (endpoint `/unidades/todas`)
+- [x] Método `extract_single_unit()` no AlunoPresenteExtractor (filtra por `unidade_id`)
+- [x] Extração suporta `unit_ids` para filtrar unidades específicas na agregação
+- [x] Endpoint `GET /api/school-unities/` lista todas as unidades disponíveis
+- [x] Schema `SchoolUnitOutput` para resposta da API
+- [x] Migration `0007_add_school_unit_ids_to_botconfig`
 
 ## Correções Críticas (Bugfixes)
 
@@ -57,6 +65,68 @@
 - [x] **BUG #7 corrigido**: fallback Playwright garante sessão autenticada (`_ensure_authenticated_page`), relogin inicial para obter token e erro claro em campo sem selector (sem `page.url` silencioso)
 - [x] Validação ao vivo em 14/08/2026: preview (`/api/execute/`) passou a extrair métricas reais (presentes/ausentes/alimentados) após re-login automático; `storage_state.json` regenerado com `aluno-presente-token`
 - [x] 61/61 testes passando (18 de segurança), `manage.py check` sem issues
+
+### Investigação da API Aluno Presente — 17/08/2026
+
+#### Endpoints Descobertos
+
+| Endpoint | Método | Dados |
+|----------|--------|-------|
+| `/api/dashboard-secretario/unidades/todas` | GET | Lista simples `[{id, nome}]` — 185 unidades |
+| `/api/dashboard-secretario/buscar-unidades-escolares-disponiveis` | GET | Detalhes completos — 185 unidades (id, nome, inep, endereco, regiao, etc.) |
+| `/api/dashboard-secretario/buscar-lista-unidades-escolares?data=...&condicao=ATIVO&page=0&size=1000` | GET | Dados de attendance — 143 unidades ativas (unidade_id, alunos_presentes, etc.) |
+| `/api/dashboard-secretario/buscar-dados-cards-principais` | GET | Cards totais (totalUnidadesEscolares, totalTurmas, etc.) |
+| `/api/dashboard-secretario/buscar-dados-subcards` | GET | Sub-cards (alunos matutinos, vespertinos, integral) |
+| `/api/dashboard-secretario/buscar-regioes-disponiveis` | GET | `["Região Leste", "Região Norte", "Região Oeste", "Região Sul"]` |
+| `/api/dashboard-secretario/buscar-periodos-disponiveis` | GET | Períodos (MATUTINO, VESPERTINO, INTEGRAL) |
+
+#### Descobertas Importantes
+
+1. Campo `unidade_id` existe na resposta da API — não era usado no código anterior
+2. Não existe endpoint individual por unidade — necessário filtrar da lista completa
+3. Filtro por query string (`?unidade_id=103`) é ignorado pela API
+4. 143 unidades ativas / 185 total (ativas + inativas)
+5. 4 regiões: Leste, Norte, Oeste, Sul
+6. API requer autenticação via Bearer token JWT (obtido via Playwright localStorage)
+7. Token expira em ~24h; re-login automático já implementado
+
+### Implementação: Consulta por Unidade Escolar Individual — 17/08/2026
+
+#### Arquivos Modificados
+
+| Arquivo | Mudança |
+|---------|---------|
+| `scraper_bot/skills/extractors/aluno_presente.py` | Adicionados `list_school_units()`, `extract_single_unit()`, parâmetro `unit_ids` em `_fetch_api_data()` e `extract_via_api()` |
+| `scraper_bot/models.py` | Campo `school_unit_ids = JSONField(default=list)` no BotConfig |
+| `scraper_bot/migrations/0007_...py` | Migration para novo campo |
+| `scraper_bot/schemas.py` | `BotExecutionInput.unit_id`, `BotConfigInput/Update/Output.school_unit_ids`, `SchoolUnitOutput` |
+| `scraper_bot/skills/extract_skill.py` | Parâmetros `unit_id` e `unit_ids` em `extract()` |
+| `scraper_bot/services.py` | `_extract_with_retry()` passa `unit_id` e `unit_ids` para extração |
+| `api/endpoints.py` | Endpoint `GET /school-unities/`, `_config_to_dict` com `school_unit_ids` |
+| `scraper_bot/management/commands/listen_telegram.py` | Comandos `/unidades`, `/unidade <nome>`, `/unidade_id <id>` |
+| `scraper_bot/tests/test_services.py` | Mocks atualizados com parâmetros `unit_id`/`unit_ids` |
+
+#### Comandos Telegram Novos
+
+| Comando | Ação |
+|---------|------|
+| `/unidades` | Lista todas as 185 unidades (ID + nome) |
+| `/unidade <nome>` | Busca fuzzy por nome; se 1 resultado, gera relatório da unidade; se múltiplos, lista correspondências |
+| `/unidade_id <id>` | Consulta unidade por ID numérico e gera relatório |
+
+#### Fluxo de Extração por Unidade
+
+```
+/unidade EMEB ADELINA
+  → list_school_units() via API /unidades/todas
+  → fuzzy match no nome
+  → se 1 match: extract_single_unit(unit_id=123)
+    → busca /buscar-lista-unidades-escolares (143 unidades)
+    → filtra por unidade_id == 123
+    → formata métricas individuais (presentes, ausentes, alimentados, fotos)
+    → renderiza template com dados da unidade
+    → envia para o destinatário que solicitou
+```
 
 ### Novos itens para o backlog (pendências encontradas na análise)
 

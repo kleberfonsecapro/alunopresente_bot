@@ -25,6 +25,7 @@ from scraper_bot.schemas import (
     RecipientInput,
     RecipientOutput,
     RecipientUpdate,
+    SchoolUnitOutput,
     StatsOutput,
     DayStats,
 )
@@ -50,6 +51,20 @@ def list_site_types(request):
     ]
 
 
+@router.get('/school-unities/', response=list[SchoolUnitOutput])
+async def list_school_units(request):
+    from scraper_bot.skills.extractors.aluno_presente import AlunoPresenteExtractor
+    extractor = AlunoPresenteExtractor()
+    token = extractor.get_token()
+    if not token:
+        return []
+    try:
+        units = await extractor.list_school_units(token)
+        return [SchoolUnitOutput(id=u['id'], nome=u['nome']) for u in units]
+    except Exception:
+        return []
+
+
 @router.get('/configs/', response=list[dict])
 def list_configs(request):
     qs = BotConfig.objects.all().select_related('template')
@@ -59,6 +74,7 @@ def list_configs(request):
         'send_times': c.send_times, 'send_days_of_week': c.send_days_of_week,
         'send_duration_days': c.send_duration_days,
         'is_active': c.is_active,
+        'school_unit_ids': c.school_unit_ids or [],
         'template_id': c.template_id,
         'template_name': c.template.name if c.template else None,
         'created_at': c.created_at.isoformat(),
@@ -89,6 +105,7 @@ def _config_to_dict(config: BotConfig) -> dict:
         'send_times': config.send_times, 'send_days_of_week': config.send_days_of_week,
         'send_duration_days': config.send_duration_days,
         'is_active': config.is_active,
+        'school_unit_ids': config.school_unit_ids or [],
         'template_id': config.template_id,
         'template_name': config.template.name if config.template else None,
         'created_at': config.created_at.isoformat(),

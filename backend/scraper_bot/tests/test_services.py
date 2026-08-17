@@ -23,7 +23,7 @@ class ExtractWithRetryTest(TestCase):
     def test_retry_recupera_apos_falha_transitoria(self):
         calls = {'n': 0}
 
-        async def flaky(url, fields, site_type):
+        async def flaky(url, fields, site_type, unit_id=None, unit_ids=None):
             calls['n'] += 1
             if calls['n'] == 1:
                 raise TimeoutError('dns fail transitorio')
@@ -40,7 +40,7 @@ class ExtractWithRetryTest(TestCase):
         self.assertEqual(calls['n'], 2)
 
     def test_falha_total_apos_todas_as_tentativas(self):
-        async def always_fails(url, fields, site_type):
+        async def always_fails(url, fields, site_type, unit_id=None, unit_ids=None):
             raise TimeoutError('dns fail persistente')
 
         orch = BotOrchestrator(max_retries=2, retry_backoff_sec=0)
@@ -56,7 +56,7 @@ class ExtractWithRetryTest(TestCase):
         self.assertEqual(orch.max_retries, 1)
 
     def test_sem_tentativas_levanta_erro_claro(self):
-        async def flaky(url, fields, site_type):
+        async def flaky(url, fields, site_type, unit_id=None, unit_ids=None):
             raise TimeoutError('boom')
 
         orch = BotOrchestrator(max_retries=1, retry_backoff_sec=0)

@@ -100,6 +100,7 @@ class BotOrchestrator:
             extraction_result = await self._extract_with_retry(
                 config=config,
                 fields=fields,
+                unit_id=input_data.unit_id,
             )
 
             now = timezone.localtime(timezone.now())
@@ -167,7 +168,7 @@ class BotOrchestrator:
                 log_id=log.id,
             )
 
-    async def _extract_with_retry(self, config: BotConfig, fields: list[ExtractionContract]) -> dict:
+    async def _extract_with_retry(self, config: BotConfig, fields: list[ExtractionContract], unit_id: int | None = None) -> dict:
         last_error: Exception | None = None
         for attempt in range(1, self.max_retries + 1):
             try:
@@ -175,6 +176,8 @@ class BotOrchestrator:
                     url=config.target_url,
                     fields=fields,
                     site_type=config.site_type,
+                    unit_id=unit_id,
+                    unit_ids=config.school_unit_ids or None,
                 )
             except Exception as e:
                 last_error = e

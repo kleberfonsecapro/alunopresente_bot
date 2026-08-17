@@ -32,6 +32,10 @@ class BotConfig(models.Model):
         'MessageTemplate', null=True, blank=True, on_delete=models.SET_NULL,
         help_text="Template de mensagem usado no disparo automático"
     )
+    school_unit_ids = models.JSONField(
+        default=list, blank=True,
+        help_text="IDs das unidades escolares da API para filtrar. Vazio = todas as unidades."
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -19,6 +19,8 @@ class ExtractionSkill:
         url: str,
         fields: list[ExtractionContract],
         site_type: str | None = None,
+        unit_id: int | None = None,
+        unit_ids: list[int] | None = None,
     ) -> dict:
         site_type = site_type or self._detect_site_type(url)
         extractor_cls = get_extractor(site_type)
@@ -32,9 +34,17 @@ class ExtractionSkill:
             except Exception as e:
                 logger.warning('Relogin inicial falhou para %s: %s', site_type, e)
 
+        if unit_id and hasattr(extractor, 'extract_single_unit'):
+            if token:
+                try:
+                    return await extractor.extract_single_unit(url, fields, token, unit_id)
+                except Exception as e:
+                    logger.warning('Extração unitária via API falhou para %s: %s', site_type, e)
+            return await extractor.extract_via_playwright(url, fields)
+
         if token:
             try:
-                result = await extractor.extract_via_api(url, fields, token)
+                result = await extractor.extract_via_api(url, fields, token, unit_ids=unit_ids)
                 if result:
                     return result
             except httpx.HTTPStatusError as e:
@@ -44,7 +54,7 @@ class ExtractionSkill:
                         await extractor.relogin()
                         token = extractor.get_token()
                         if token:
-                            result = await extractor.extract_via_api(url, fields, token)
+                            result = await extractor.extract_via_api(url, fields, token, unit_ids=unit_ids)
                             if result:
                                 return result
                     except Exception as relogin_error:

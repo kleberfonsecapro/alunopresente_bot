@@ -71,6 +71,10 @@ class BotExecutionInput(BaseModel):
     skip_time_check: bool = False
     preview: bool = False
     trigger: str = 'manual'
+    unit_id: int | None = Field(
+        default=None,
+        description="ID de uma unidade escolar específica para consulta avulsa"
+    )
 
 
 class BotConfigInput(BaseModel):
@@ -97,6 +101,10 @@ class BotConfigInput(BaseModel):
         default=None,
         description="ID do template usado no disparo automático"
     )
+    school_unit_ids: list[int] = Field(
+        default_factory=list,
+        description="IDs das unidades escolares para filtrar. Vazio = todas."
+    )
 
 
 class BotConfigUpdate(BaseModel):
@@ -109,6 +117,7 @@ class BotConfigUpdate(BaseModel):
     send_duration_days: int | None = None
     is_active: bool | None = None
     template_id: int | None = None
+    school_unit_ids: list[int] | None = None
 
 
 class BotConfigOutput(BaseModel):
@@ -121,6 +130,7 @@ class BotConfigOutput(BaseModel):
     send_days_of_week: list[int]
     send_duration_days: int | None
     is_active: bool
+    school_unit_ids: list[int]
     created_at: datetime
     updated_at: datetime
 
@@ -205,3 +215,8 @@ class StatsOutput(BaseModel):
     avg_duration_sec: float | None = None
     by_trigger: dict[str, int]
     last_7_days: list[DayStats]
+
+
+class SchoolUnitOutput(BaseModel):
+    id: int
+    nome: str
