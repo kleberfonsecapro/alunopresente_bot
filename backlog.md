@@ -128,6 +128,35 @@
     → envia para o destinatário que solicitou
 ```
 
+#### Template Individual — Sem Rede/Top10
+
+- Criado **Template 7: "Consulta Unidade Individual"** — exclusivo para buscas por unidade
+- Remove seções `🏫 Rede` e `🏆 Top 10 Unidades` que só fazem sentido no relatório completo da rede
+- Comandos `/unidade` e `/unidade_id` usam `template_id=7` (hardcoded)
+- Alias `/unidadeid` (sem underscore) adicionado para conveniência no celular
+- `extract_single_unit()` sempre inclui metadados (`unidade_id`, `unidade_nome`, `inep`, `regiao`) independentemente dos `extraction_fields` configurados
+- `_fetch_api_data()` com `unit_ids` exclui campos de rede: `total_unidades`, `total_turmas`, `unidades_ativas`, `alunos_matutinos/vespertinos/integral`, `alunos_especiais`, `alunos_com_foto` e `top1..10_*`
+
+#### Formato da Resposta Individual
+
+```
+📊 EMEB ADELINA PEREIRA VENTURA
+📅 17/08/2026 — MANHÃ
+🆔 ID: 132 | INEP: 35012345 | Região: NORTE
+
+✅ Presenças
+Presentes: 45 (85,0%)
+Ausentes: 8 (15,0%)
+
+🍽 Alimentação
+Alimentados: 40 (88,9%)
+Não Alimentados: 5 (11,1%)
+
+📸 Fotos
+Com Foto: 42 (84,0%)
+Sem Foto: 8 (16,0%)
+```
+
 ### Novos itens para o backlog (pendências encontradas na análise)
 
 - [ ] **BUG**: IDs de template hardcoded no listener (`listen_telegram.py:97,100,103`) — quebra se o seed mudar; buscar pelo nome (`MessageTemplate.objects.get(name=...)`)
