@@ -116,10 +116,6 @@ class Command(BaseCommand):
             args = text.split(maxsplit=1)
             query = args[1] if len(args) > 1 else ''
             self._query_school_unit(token, chat_id, query)
-        elif cmd in ('/unidade_id', '/unidadeid'):
-            args = text.split(maxsplit=1)
-            unit_id_str = args[1] if len(args) > 1 else ''
-            self._query_school_unit_by_id(token, chat_id, unit_id_str)
 
     def _register_user(self, chat_id: str, name: str):
         obj, created = Recipient.objects.get_or_create(
@@ -157,7 +153,6 @@ class Command(BaseCommand):
             '🏫 */unidades matutino* — Filtrar por período\n'
             '📅 */periodos* — Listar períodos disponíveis\n'
             '🔍 */unidade <nome>* — Consultar escola por nome\n'
-            '🔢 */unidade_id <ID>* — Consultar escola por ID\n'
             'ℹ️ */status* — Status do bot\n'
             '⚙️ */configuracoes* — Configurações ativas\n'
             '📝 */ultima_execucao* — Última execução\n'
@@ -216,7 +211,6 @@ class Command(BaseCommand):
             '📅 */resumo_diario* — Resumo diário\n'
             '🏫 */unidades* — Listar todas as escolas disponíveis\n'
             '🔍 */unidade <nome>* — Consultar dados de uma escola por nome\n'
-            '🔢 */unidade_id <ID>* — Consultar dados de uma escola por ID\n'
             'ℹ️ */status* — Status do bot (configs ativas, usuários, últimas execuções)\n'
             '⚙️ */configuracoes* — Lista as configurações ativas com horários\n'
             '📝 */ultima_execucao* — Detalhes da execução mais recente\n'
@@ -318,7 +312,6 @@ class Command(BaseCommand):
             {'command': 'resumo_diario', 'description': 'Resumo Diário'},
             {'command': 'unidades', 'description': 'Listar escolas (filtro: /unidades matutino)'},
             {'command': 'unidade', 'description': 'Consultar escola por nome'},
-            {'command': 'unidade_id', 'description': 'Consultar escola por ID'},
             {'command': 'periodos', 'description': 'Listar períodos disponíveis'},
             {'command': 'status', 'description': 'Status do bot'},
             {'command': 'configuracoes', 'description': 'Configurações ativas'},
@@ -478,19 +471,8 @@ class Command(BaseCommand):
             lines.append(f'• `{u["id"]}` — {u["nome"]}')
         if len(matches) > 20:
             lines.append(f'\n... e mais {len(matches) - 20} escolas.')
-        lines.append('\nUse /unidade_id <ID> para consultar uma específica.')
 
         self._send_telegram(token, chat_id, '\n'.join(lines))
-
-    def _query_school_unit_by_id(self, token: str, chat_id: str, unit_id_str: str):
-        try:
-            unit_id = int(unit_id_str)
-        except (ValueError, TypeError):
-            self._send_telegram(token, chat_id, 'Uso: /unidade_id <número>\nEx: /unidade_id 103')
-            return
-
-        self._send_status(token, chat_id, f'Consultando unidade ID {unit_id}...')
-        self._run_report(token, chat_id, template_id=7, unit_id=unit_id)
 
     def _load_offset(self) -> int:
         try:
