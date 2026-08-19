@@ -47,8 +47,11 @@
 - [x] **BUG #3**: `messaging_skill.send_bulk()` sem timeout e sem concorrência → **Corrigido: httpx.AsyncClient com timeout 10s + asyncio.gather + semaphore (10 concorrentes)**
 - [x] **BUG #4**: `extract_skill` propagava exceção do relogin em vez de fazer fallback para Playwright → **Corrigido: try/except no relogin com fallback garantido**
 - [x] **BUG #5**: Agendamento custom com drift e sem persistência → **Corrigido: APScheduler + DjangoJobStore (persistente, sem drift, misfire_grace_time=300s)**
-- [x] **BUG #6**: Boas-vindas do `/start` não aparecia → **Causas: dois listeners concorrentes no mesmo token (backend + scheduler via entrypoint `&`), update marcado como lido antes do processamento (`offset` avançado antes do envio) e rede instável com `sendMessage` silencioso. Corrigido: serviço Docker dedicado (`scraper_listener`) com um único poller, processamento isolado por update, offset persistido em volume (`telegram_offset.txt`), `sendMessage` com verificação de resposta + 3 retries com backoff e fallback sem Markdown.**
+- [x] **BUG #6**: Boas-vindas do `/start` não aparecia → **Causas: dois listeners concorrentes no mesmo token (backend + scheduler via entrypoint `&`), update marcado como lido antes do processamento (`offset` avançado antes do envio) e rede instável com `sendMessage` silencioso. Corrigido: serviço Docker dedicado (`aluno_presente_listener`) com um único poller, processamento isolado por update, offset persistido em volume (`telegram_offset.txt`), `sendMessage` com verificação de resposta + 3 retries com backoff e fallback sem Markdown.**
 - [x] **BUG #7**: Fallback Playwright produzia **dados inúteis com `success=True`** → **Sintoma: sem `storage_state.json` (sessão ausente/expirou), `get_token()` retornava `None`, o caminho da API era pulado e o fallback Playwright gravava `page.url` como valor de TODOS os campos (52 campos = URL da tela de login), registrando sucesso. Corrigido em 3 frentes: (1) `ExtractSkill.extract` agora tenta `relogin()` inicial quando não há token e o site define `login_url`, obtendo token antes de cair no fallback; (2) `SiteExtractor` ganhou helpers `_ensure_authenticated_page`/`_is_login_page` que detectam redirect para login, relogam e recriam a página (falha explícita com `RuntimeError` se o login persistir); (3) campo sem selector agora **levanta erro claro** em vez de retornar `page.url` (genérico retorna `None` honesto). +9 testes unitários (total 61). Validação real: preview passou a extrair métricas corretas após re-login automático.**
+- [x] **BUG #8**: Comandos Telegram `/unidades` e `/unidade <nome>` falhavam com **401 Unauthorized** ao buscar `/api/dashboard-secretario/unidades/todas` → **Causa: `_list_school_units()` e `_query_school_unit()` em `listen_telegram.py` chamavam `list_school_units(token)` diretamente — quando o JWT expira (~24h), `get_token()` retorna a string não-vazia do token expirado, a requisição HTTP retorna 401, e o `except Exception` genérico repassava o erro sem tentar re-login. O caminho da `ExtractionSkill` já tratava 401 com re-login, mas o Telegram listener bypassava completamente essa lógica. Corrigido: catch específico para `httpx.HTTPStatusError` com status 401 em ambos os métodos — chama `extractor.relogin()`, obtém novo token via `get_token()`, e retenta `list_school_units()`. Se re-login falhar, informa o usuário. Padrão idêntico ao já existente em `ExtractionSkill.extract()` (`extract_skill.py:46-62`).**
+- [x] **BUG #9**: `extract_single_unit()` e `_fetch_api_data()` em `aluno_presente.py` recalculavam métricas manualmente **ignorando campos pré-calculados da API** → **Sintoma: dados divergentes entre bot e website (ex: bot mostrava ausentes=166 ao invés de 172, nao_alimentados=43 ao invés de 39). A API Aluno Presente retorna `alunos_ausentes`, `percentual_ausencia`, `nao_alimentados` e `percentual_nao_alimentados` pré-calculados, mas o código recalculava tudo manualmente: `ausentes = expectativaPresenca - alunos_presentes` (diferente do cálculo da API que considera ausências justificadas), `nao_alimentados = alunos_presentes - alunos_alimentados`, e porcentagens derivadas desses valores incorretos. Corrigido em 2 métodos: (1) `extract_single_unit()` agora usa `unit.get('alunos_ausentes', fallback)`, `unit.get('percentual_ausencia', fallback)`, `unit.get('nao_alimentados', fallback)`, `unit.get('percentual_nao_alimentados', fallback)`; (2) `_fetch_api_data()` agora soma `alunos_ausentes`, `nao_alimentados` e `alunos_sem_foto` diretamente da API em vez de subtrair. Validação real: unit 75 agora mostra ausentes=172 (antes 166), nao_alimentados=39 (antes 43), percentuais alinhados com a API.**
+- [x] **BUG #10**: Cálculo de AUSENTES divergia do website (54 vs 47 para unit 75) → **Causa: o campo `alunos_ausentes` da API é `total_alunos - presentes` (conta alunos não esperados), mas o website calcula AUSENTES como `expectativaPresenca - presentes` (apenas alunos ausentes que deveriam estar presentes). Para unit 75: API retornava `alunos_ausentes=54` (359-305) mas website mostrava 47 (352-305). Resultado: bot mostrava 54 ausentes (15,0%) enquanto website mostrava 47 (13,4%). Corrigido: `extract_single_unit()` agora calcula `ausentes = expectativaPresenca - presentes` e `ausentes_pct` proporcionalmente; `_fetch_api_data()` soma `expectativaPresenca - presentes` por unidade. Validação: unit 75 agora mostra 47 ausentes (13,4%), idêntico ao website.**
 
 ## Pendentes
 
@@ -61,7 +64,7 @@
 
 ### Verificado (já resolvido / confirmado)
 
-- [x] Scheduler como serviço Docker dedicado (`scraper_scheduler`) com APScheduler + `DjangoJobStore` persistente
+- [x] Scheduler como serviço Docker dedicado (`aluno_presente_scheduler`) com APScheduler + `DjangoJobStore` persistente
 - [x] Reconciliação de jobs: `sync_jobs_from_db()` no `run_scheduler` corrige configs editadas/desativadas sem depender só do sinal
 - [x] Alertas de falha do agendamento via Telegram (`_notify_failure` → `TELEGRAM_ADMIN_CHAT_ID` ou destinatários ativos)
 - [x] Arquitetura de extratores por plugin (registry): `aluno_presente` e `generic`, com fallback Playwright
@@ -72,6 +75,9 @@
 - [x] **BUG #7 corrigido**: fallback Playwright garante sessão autenticada (`_ensure_authenticated_page`), relogin inicial para obter token e erro claro em campo sem selector (sem `page.url` silencioso)
 - [x] Validação ao vivo em 14/08/2026: preview (`/api/execute/`) passou a extrair métricas reais (presentes/ausentes/alimentados) após re-login automático; `storage_state.json` regenerado com `aluno-presente-token`
 - [x] 61/61 testes passando (18 de segurança), `manage.py check` sem issues
+- [x] **BUG #8 corrigido (18/08/2026)**: Telegram listener (`/unidades`, `/unidade`) agora trata 401 com re-login automático, replicando o padrão da `ExtractionSkill`
+- [x] **BUG #9 corrigido (18/08/2026)**: `extract_single_unit()` e `_fetch_api_data()` agora usam campos pré-calculados da API (`alunos_ausentes`, `percentual_ausencia`, `nao_alimentados`, `percentual_nao_alimentados`) em vez de recalcular manualmente — dados agora alinhados com o website
+- [x] **BUG #10 corrigido (18/08/2026)**: AUSENTES calculado como `expectativaPresenca - presentes` em vez de usar campo `alunos_ausentes` da API (que é `total_alunos - presentes`) — bot agora mostra mesmos valores que o website (ex: unit 75 = 47 ausentes, 13,4%)
 
 ### Investigação da API Aluno Presente — 17/08/2026
 
@@ -103,15 +109,15 @@
 
 | Arquivo | Mudança |
 |---------|---------|
-| `scraper_bot/skills/extractors/aluno_presente.py` | Adicionados `list_school_units()`, `extract_single_unit()`, parâmetro `unit_ids` em `_fetch_api_data()` e `extract_via_api()` |
-| `scraper_bot/models.py` | Campo `school_unit_ids = JSONField(default=list)` no BotConfig |
-| `scraper_bot/migrations/0007_...py` | Migration para novo campo |
-| `scraper_bot/schemas.py` | `BotExecutionInput.unit_id`, `BotConfigInput/Update/Output.school_unit_ids`, `SchoolUnitOutput` |
-| `scraper_bot/skills/extract_skill.py` | Parâmetros `unit_id` e `unit_ids` em `extract()` |
-| `scraper_bot/services.py` | `_extract_with_retry()` passa `unit_id` e `unit_ids` para extração |
+| `aluno_presente_sme/skills/extractors/aluno_presente.py` | Adicionados `list_school_units()`, `extract_single_unit()`, parâmetro `unit_ids` em `_fetch_api_data()` e `extract_via_api()` |
+| `aluno_presente_sme/models.py` | Campo `school_unit_ids = JSONField(default=list)` no BotConfig |
+| `aluno_presente_sme/migrations/0007_...py` | Migration para novo campo |
+| `aluno_presente_sme/schemas.py` | `BotExecutionInput.unit_id`, `BotConfigInput/Update/Output.school_unit_ids`, `SchoolUnitOutput` |
+| `aluno_presente_sme/skills/extract_skill.py` | Parâmetros `unit_id` e `unit_ids` em `extract()` |
+| `aluno_presente_sme/services.py` | `_extract_with_retry()` passa `unit_id` e `unit_ids` para extração |
 | `api/endpoints.py` | Endpoint `GET /school-unities/`, `_config_to_dict` com `school_unit_ids` |
-| `scraper_bot/management/commands/listen_telegram.py` | Comandos `/unidades`, `/unidade <nome>`, `/unidade_id <id>` |
-| `scraper_bot/tests/test_services.py` | Mocks atualizados com parâmetros `unit_id`/`unit_ids` |
+| `aluno_presente_sme/management/commands/listen_telegram.py` | Comandos `/unidades`, `/unidade <nome>`, `/unidade_id <id>` |
+| `aluno_presente_sme/tests/test_services.py` | Mocks atualizados com parâmetros `unit_id`/`unit_ids` |
 
 #### Comandos Telegram Novos
 
@@ -173,5 +179,5 @@ Sem Foto: 8 (16,0%)
 - [ ] **REFAC**: duplicação de `list_configs` e `_config_to_dict` em `endpoints.py` — unificar
 - [ ] **OPS**: `CSRF_TRUSTED_ORIGINS` só em `settings.py` com IP fixo `10.62.30.165`; mover para `.env`/`.env.example` com nota de porta
 - [ ] **ROBUSTEZ**: `_detect_site_type` em `extract_skill.py` usa substring `'alunopresente'` — usar `matches_url()` do registry para novos sites
-- [ ] **QUALIDADE**: rodar testes via `manage.py test scraper_bot.tests` no CI; avaliar migração para pytest + cobertura (coverage.py)
+- [ ] **QUALIDADE**: rodar testes via `manage.py test aluno_presente_sme.tests` no CI; avaliar migração para pytest + cobertura (coverage.py)
 - [ ] **OBS**: `extract_via_api` formata métricas como strings pt-BR já renderizadas; manter contratos tipados (int/float) e formatar só no template

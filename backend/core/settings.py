@@ -22,7 +22,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'ninja',
     'django_apscheduler',
-    'scraper_bot',
+    'aluno_presente_sme',
 ]
 
 MIDDLEWARE = [

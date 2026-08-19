@@ -1,6 +1,6 @@
 import asyncio
 from playwright.async_api import async_playwright
-from scraper_bot.skills.auth_skill import get_storage_state
+from aluno_presente_sme.skills.auth_skill import get_storage_state
 
 async def main():
     async with async_playwright() as p:

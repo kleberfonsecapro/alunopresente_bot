@@ -1,7 +1,7 @@
 services:
   db:
     image: postgres:15-alpine
-    container_name: scraper_db
+    container_name: aluno_presente_db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -23,7 +23,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: scraper_backend
+    container_name: aluno_presente_backend
     restart: unless-stopped
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
@@ -44,7 +44,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: scraper_scheduler
+    container_name: aluno_presente_scheduler
     restart: unless-stopped
     command: python manage.py run_scheduler
     volumes:
@@ -63,7 +63,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: scraper_listener
+    container_name: aluno_presente_listener
     restart: unless-stopped
     command: python manage.py listen_telegram
     volumes:
@@ -80,7 +80,7 @@ services:
 
   nginx:
     image: nginx:alpine
-    container_name: scraper_nginx
+    container_name: aluno_presente_nginx
     restart: unless-stopped
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro

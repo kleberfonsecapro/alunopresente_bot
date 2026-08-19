@@ -8,7 +8,7 @@ done
 echo "Banco de dados pronto!"
 
 echo "Criando migrations..."
-python manage.py makemigrations scraper_bot --noinput
+python manage.py makemigrations aluno_presente_sme --noinput
 
 echo "Executando migrações..."
 python manage.py migrate --noinput

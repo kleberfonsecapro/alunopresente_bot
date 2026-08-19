@@ -1,11 +1,11 @@
 from ninja import Router
 from ninja.security import SessionAuth
 
-from scraper_bot.models import BotConfig, ExecutionLog, MessageTemplate, Recipient
+from aluno_presente_sme.models import BotConfig, ExecutionLog, MessageTemplate, Recipient
 from django.db.models import Avg, Count, Sum
 from django.db.models.functions import TruncDate
 
-from scraper_bot.schemas import (
+from aluno_presente_sme.schemas import (
     AuthenticationInput,
     AuthenticationOutput,
     BotConfigInput,
@@ -29,11 +29,11 @@ from scraper_bot.schemas import (
     StatsOutput,
     DayStats,
 )
-from scraper_bot.services import BotOrchestrator
-from scraper_bot.skills.auth import AuthenticationSkill
-from scraper_bot.skills.extract_skill import ExtractionSkill
-from scraper_bot.skills.messaging_skill import MessagingSkill
-from scraper_bot.skills.navigation_skill import NavigationSkill
+from aluno_presente_sme.services import BotOrchestrator
+from aluno_presente_sme.skills.auth import AuthenticationSkill
+from aluno_presente_sme.skills.extract_skill import ExtractionSkill
+from aluno_presente_sme.skills.messaging_skill import MessagingSkill
+from aluno_presente_sme.skills.navigation_skill import NavigationSkill
 
 router = Router(auth=SessionAuth())
 
@@ -44,7 +44,7 @@ def _model_to_dict(instance, fields: list[str]) -> dict:
 
 @router.get('/site-types/', response=list[dict])
 def list_site_types(request):
-    from scraper_bot.skills.extractors.registry import list_site_choices
+    from aluno_presente_sme.skills.extractors.registry import list_site_choices
     return [
         {'site_type': st, 'label': label}
         for st, label in list_site_choices()
@@ -53,7 +53,7 @@ def list_site_types(request):
 
 @router.get('/school-unities/', response=list[SchoolUnitOutput])
 async def list_school_units(request):
-    from scraper_bot.skills.extractors.aluno_presente import AlunoPresenteExtractor
+    from aluno_presente_sme.skills.extractors.aluno_presente import AlunoPresenteExtractor
     extractor = AlunoPresenteExtractor()
     token = extractor.get_token()
     if not token:

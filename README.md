@@ -156,7 +156,7 @@ O sistema segue uma arquitetura **headless** (backend e frontend totalmente desa
 │   │   ├── endpoints.py        # Endpoints protegidos
 │   │   └── urls.py
 │   │
-│   ├── scraper_bot/            # App principal
+│   ├── aluno_presente_sme/            # App principal
 │   │   ├── models.py           # BotConfig, MessageTemplate, Recipient, ExecutionLog
 │   │   ├── schemas.py          # Contratos Pydantic
 │   │   ├── services.py         # Orquestração (BotOrchestrator)
@@ -228,23 +228,23 @@ docker compose up -d
 
 ```bash
 # Logs do scheduler
-docker logs scraper_backend | grep -E "\[2026"
+docker logs aluno_presente_backend | grep -E "\[2026"
 
 # Executar o bot manualmente
-docker exec scraper_backend python manage.py run_bot --config-id 1
+docker exec aluno_presente_backend python manage.py run_bot --config-id 1
 
 # Ver execuções recentes
-docker exec scraper_backend python -c "
+docker exec aluno_presente_backend python -c "
 import django, os
 os.environ['DJANGO_SETTINGS_MODULE']='core.settings'
 django.setup()
-from scraper_bot.models import ExecutionLog
+from aluno_presente_sme.models import ExecutionLog
 for log in ExecutionLog.objects.all().order_by('-started_at')[:5]:
     print(log.id, log.trigger, log.success, log.started_at, log.sent_count)
 "
 
 # Testes
-docker exec scraper_backend python manage.py test scraper_bot.tests
+docker exec aluno_presente_backend python manage.py test aluno_presente_sme.tests
 ```
 
 ---
@@ -255,7 +255,7 @@ docker exec scraper_backend python manage.py test scraper_bot.tests
 
 | Variável | Descrição | Exemplo |
 |----------|-----------|---------|
-| `POSTGRES_DB` | Nome do banco | `scraper_bot` |
+| `POSTGRES_DB.*scraper_bot` |
 | `POSTGRES_USER` | Usuário do banco | `postgres` |
 | `POSTGRES_PASSWORD` | Senha do banco | `senha_segura` |
 | `DJANGO_SECRET_KEY` | Chave secreta Django | `gerar-uma-chave-aleatoria` |
@@ -422,10 +422,10 @@ O sistema utiliza uma arquitetura de **skills isoladas**, cada uma com responsab
 
 ```bash
 # Executar todos os testes
-docker exec scraper_backend python manage.py test scraper_bot.tests
+docker exec aluno_presente_backend python manage.py test aluno_presente_sme.tests
 
 # Testes específicos
-docker exec scraper_backend python manage.py test scraper_bot.tests.test_security
+docker exec aluno_presente_backend python manage.py test aluno_presente_sme.tests.test_security
 ```
 
 ### Cobertura
