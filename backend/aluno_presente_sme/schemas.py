@@ -153,12 +153,16 @@ class RecipientInput(BaseModel):
     name: str
     identifier: str
     platform: str
+    cpf: str = Field(default='', description="CPF (formato: XXX.XXX.XXX-XX)")
+    matricula_funcional: str = Field(default='', description="Matrícula funcional")
 
 
 class RecipientUpdate(BaseModel):
     name: str | None = None
     identifier: str | None = None
     platform: str | None = None
+    cpf: str | None = None
+    matricula_funcional: str | None = None
     is_active: bool | None = None
 
 
@@ -175,6 +179,8 @@ class RecipientOutput(BaseModel):
     name: str
     identifier: str
     platform: str
+    cpf: str
+    matricula_funcional: str
     is_active: bool
     created_at: datetime
 

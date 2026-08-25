@@ -6,7 +6,7 @@ from pathlib import Path
 import httpx
 from django.core.management.base import BaseCommand
 
-from aluno_presente_sme.models import BotConfig, ExecutionLog, Recipient
+from aluno_presente_sme.models import BotConfig, ExecutionLog, Recipient, validate_cpf
 from aluno_presente_sme.schemas import BotExecutionInput
 from aluno_presente_sme.services import BotOrchestrator
 
@@ -14,6 +14,7 @@ TELEGRAM_API = 'https://api.telegram.org/bot{token}/{method}'
 POLL_TIMEOUT = 30
 MAX_SEND_ATTEMPTS = 3
 OFFSET_FILE = Path('/app/playwright_state/telegram_offset.txt')
+MSG_NAO_CADASTRADO = 'Usuário não cadastrado, entrar em contato com SAME para devida autorização.'
 
 
 class Command(BaseCommand):
@@ -93,24 +94,42 @@ class Command(BaseCommand):
         elif cmd == '/ultima_execucao':
             self._send_last_execution(token, chat_id)
         elif cmd in ('/relatorio_completo', '/completo'):
+            if not self._has_access(chat_id):
+                self._send_telegram(token, chat_id, MSG_NAO_CADASTRADO)
+                return
             self._send_status(token, chat_id, 'Gerando relatório completo...')
             self._run_report(token, chat_id, template_id=4)
         elif cmd in ('/resumo_secretaria',):
+            if not self._has_access(chat_id):
+                self._send_telegram(token, chat_id, MSG_NAO_CADASTRADO)
+                return
             self._send_status(token, chat_id, 'Gerando resumo...')
             self._run_report(token, chat_id, template_id=1)
         elif cmd in ('/resumo_diario', '/diario'):
+            if not self._has_access(chat_id):
+                self._send_telegram(token, chat_id, MSG_NAO_CADASTRADO)
+                return
             self._send_status(token, chat_id, 'Gerando resumo diário...')
             self._run_report(token, chat_id, template_id=3)
         elif cmd in ('/relatorio',):
+            if not self._has_access(chat_id):
+                self._send_telegram(token, chat_id, MSG_NAO_CADASTRADO)
+                return
             self._send_status(token, chat_id, 'Gerando relatório...')
             tid = BotConfig.objects.filter(is_active=True).first()
             tid = tid.template_id if tid else None
             self._run_report(token, chat_id, template_id=tid)
         elif cmd == '/unidades':
+            if not self._has_access(chat_id):
+                self._send_telegram(token, chat_id, MSG_NAO_CADASTRADO)
+                return
             args = text.split(maxsplit=1)
             period = args[1].upper() if len(args) > 1 else None
             self._list_school_units(token, chat_id, period=period)
         elif cmd == '/unidade':
+            if not self._has_access(chat_id):
+                self._send_telegram(token, chat_id, MSG_NAO_CADASTRADO)
+                return
             args = text.split(maxsplit=1)
             query = args[1] if len(args) > 1 else ''
             self._query_school_unit(token, chat_id, query)
@@ -128,6 +147,61 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             f'{action}: {name} ({chat_id})'
         ))
+
+    def _has_access(self, chat_id: str) -> bool:
+        """Verifica se o destinatário tem CPF ou matrícula cadastrada."""
+        try:
+            recipient = Recipient.objects.get(identifier=chat_id, platform='telegram')
+            return recipient.has_access
+        except Recipient.DoesNotExist:
+            return False
+
+    def _handle_cadastrar(self, token: str, chat_id: str, args: list):
+        """Processa o comando /cadastrar CPF XXX.XXX.XXX-XX ou /cadastrar MATRICULA 123456."""
+        if len(args) < 3:
+            self._send_telegram(
+                token, chat_id,
+                'Uso correto:\n'
+                '/cadastrar CPF XXX.XXX.XXX-XX\n'
+                '/cadastrar MATRICULA 123456'
+            )
+            return
+
+        tipo = args[1].upper()
+        valor = args[2].strip()
+
+        try:
+            recipient = Recipient.objects.get(identifier=chat_id, platform='telegram')
+        except Recipient.DoesNotExist:
+            self._send_telegram(
+                token, chat_id,
+                'Usuário não encontrado. Envie /start primeiro para se registrar.'
+            )
+            return
+
+        if tipo == 'CPF':
+            cpf_digits = ''.join(filter(str.isdigit, valor))
+            if not validate_cpf(cpf_digits):
+                self._send_telegram(token, chat_id, 'CPF inválido. Verifique e tente novamente.')
+                return
+            formatted = f'{cpf_digits[:3]}.{cpf_digits[3:6]}.{cpf_digits[6:9]}-{cpf_digits[9:]}'
+            recipient.cpf = formatted
+            recipient.save()
+            self._send_telegram(token, chat_id, f'CPF {formatted} cadastrado com sucesso!')
+        elif tipo == 'MATRICULA':
+            if not valor:
+                self._send_telegram(token, chat_id, 'Informe o número da matrícula.')
+                return
+            recipient.matricula_funcional = valor
+            recipient.save()
+            self._send_telegram(token, chat_id, f'Matrícula {valor} cadastrada com sucesso!')
+        else:
+            self._send_telegram(
+                token, chat_id,
+                'Tipo inválido. Use:\n'
+                '/cadastrar CPF XXX.XXX.XXX-XX\n'
+                '/cadastrar MATRICULA 123456'
+            )
 
     def _deactivate_user(self, chat_id: str):
         updated = Recipient.objects.filter(

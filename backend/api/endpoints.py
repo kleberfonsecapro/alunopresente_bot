@@ -1,8 +1,11 @@
+import logging
 from ninja import Router
 from ninja.security import SessionAuth
 
 from aluno_presente_sme.models import BotConfig, ExecutionLog, MessageTemplate, Recipient
 from django.db.models import Avg, Count, Sum
+
+logger = logging.getLogger(__name__)
 from django.db.models.functions import TruncDate
 
 from aluno_presente_sme.schemas import (
@@ -238,7 +241,7 @@ def list_recipients(request):
 def create_recipient(request, payload: RecipientInput):
     recipient = Recipient.objects.create(**payload.model_dump())
     return _model_to_dict(recipient, [
-        'id', 'name', 'identifier', 'platform',
+        'id', 'name', 'identifier', 'platform', 'cpf', 'matricula_funcional',
         'is_active', 'created_at'
     ])
 
@@ -250,7 +253,7 @@ def update_recipient(request, recipient_id: int, payload: RecipientUpdate):
         setattr(recipient, attr, value)
     recipient.save()
     return _model_to_dict(recipient, [
-        'id', 'name', 'identifier', 'platform',
+        'id', 'name', 'identifier', 'platform', 'cpf', 'matricula_funcional',
         'is_active', 'created_at'
     ])
 
@@ -264,6 +267,14 @@ def delete_recipient(request, recipient_id: int):
 
 @router.post('/execute/', response=BotExecutionOutput)
 async def execute_bot(request, payload: BotExecutionInput):
+    if payload.recipient_ids:
+        recipients = Recipient.objects.filter(id__in=payload.recipient_ids, is_active=True)
+        authorized_ids = [r.id for r in recipients if r.has_access]
+        blocked = [r for r in recipients if not r.has_access]
+        if blocked:
+            names = ', '.join(r.name for r in blocked)
+            logger.warning('Destinatários bloqueados (sem CPF/matrícula): %s', names)
+        payload.recipient_ids = authorized_ids
     orchestrator = BotOrchestrator()
     result = await orchestrator.execute(payload)
     return result
@@ -316,10 +327,25 @@ async def navigate(request, payload: NavigationInput):
 
 @router.post('/send/', response=MessageOutput)
 async def send_message(request, payload: MessageInput):
+    identifiers = [(r.get('platform', ''), r.get('identifier', '')) for r in payload.recipients]
+    authorized = []
+    for r_data in payload.recipients:
+        platform = r_data.get('platform', '')
+        identifier = r_data.get('identifier', '')
+        try:
+            recipient = Recipient.objects.get(platform=platform, identifier=identifier, is_active=True)
+            if recipient.has_access:
+                authorized.append(r_data)
+            else:
+                logger.warning('Envio bloqueado (sem CPF/matrícula): %s (%s)', recipient.name, identifier)
+        except Recipient.DoesNotExist:
+            logger.warning('Envio bloqueado (destinatário inexistente): %s', identifier)
+    if not authorized:
+        return MessageOutput(sent_count=0, failed_count=0, details=['Nenhum destinatário autorizado'])
     skill = MessagingSkill()
     result = await skill.send_bulk(
         template_body=payload.template_body,
         extracted_data=payload.extracted_data,
-        recipients=payload.recipients
+        recipients=authorized
     )
     return result

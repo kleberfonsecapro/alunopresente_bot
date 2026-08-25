@@ -80,7 +80,13 @@ class BotOrchestrator:
             )
 
             config = await _get_config(id=input_data.config_id)
-            recipients = await _get_recipients()
+            all_recipients = await _get_recipients()
+
+            authorized = [r for r in all_recipients if r.has_access]
+            blocked = [r for r in all_recipients if not r.has_access]
+            if blocked:
+                names = ', '.join(r.name for r in blocked)
+                logger.warning('Destinatários bloqueados (sem CPF/matrícula): %s', names)
 
             if not input_data.skip_time_check:
                 ok, msg = self.should_execute(config)
@@ -136,7 +142,7 @@ class BotOrchestrator:
 
             recipients_data = [
                 {'platform': r.platform, 'identifier': r.identifier}
-                for r in recipients
+                for r in authorized
             ]
 
             messaging_result = await self.messaging.send_bulk(
@@ -194,7 +200,12 @@ class BotOrchestrator:
         raise last_error
 
     def _build_input(self, config: BotConfig) -> BotExecutionInput:
-        recipients = list(Recipient.objects.filter(is_active=True).values_list('id', flat=True))
+        from django.db.models import Q
+        recipients = list(
+            Recipient.objects.filter(is_active=True).filter(
+                Q(cpf__gt='') | Q(matricula_funcional__gt='')
+            ).values_list('id', flat=True)
+        )
         return BotExecutionInput(
             config_id=config.id,
             template_id=config.template.id,

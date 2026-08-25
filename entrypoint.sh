@@ -7,11 +7,17 @@ until python -c "import psycopg2; psycopg2.connect(host='$POSTGRES_HOST', dbname
 done
 echo "Banco de dados pronto!"
 
+echo "Instalando dependências Python..."
+pip install --quiet whitenoise
+
 echo "Criando migrations..."
 python manage.py makemigrations aluno_presente_sme --noinput
 
 echo "Executando migrações..."
 python manage.py migrate --noinput
+
+echo "Coleando arquivos estáticos..."
+python manage.py collectstatic --noinput
 
 echo "Criando superusuário (se não existir)..."
 python manage.py shell -c "

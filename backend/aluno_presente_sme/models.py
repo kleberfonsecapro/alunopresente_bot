@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from aluno_presente_sme.skills.extractors import list_site_choices
@@ -64,6 +65,32 @@ class MessageTemplate(models.Model):
         verbose_name_plural = "Templates de Mensagem"
 
 
+def validate_cpf(cpf: str) -> bool:
+    """Valida CPF brasileiro (11 dígitos com dígitos verificadores)."""
+    cpf = ''.join(filter(str.isdigit, cpf))
+    if len(cpf) != 11:
+        return False
+    if cpf == cpf[0] * 11:
+        return False
+    total = sum(int(cpf[i]) * (10 - i) for i in range(9))
+    remainder = total % 11
+    if remainder < 2:
+        if int(cpf[9]) != 0:
+            return False
+    else:
+        if int(cpf[9]) != 11 - remainder:
+            return False
+    total = sum(int(cpf[i]) * (11 - i) for i in range(10))
+    remainder = total % 11
+    if remainder < 2:
+        if int(cpf[10]) != 0:
+            return False
+    else:
+        if int(cpf[10]) != 11 - remainder:
+            return False
+    return True
+
+
 class Recipient(models.Model):
     CHAT_PLATFORMS = [
         ('whatsapp', 'WhatsApp'),
@@ -78,8 +105,30 @@ class Recipient(models.Model):
         help_text="Número de telefone, ID de chat ou e-mail do destinatário"
     )
     platform = models.CharField(max_length=50, choices=CHAT_PLATFORMS)
+    cpf = models.CharField(
+        max_length=14, blank=True, default='',
+        help_text="CPF do destinatário (formato: XXX.XXX.XXX-XX)"
+    )
+    matricula_funcional = models.CharField(
+        max_length=50, blank=True, default='',
+        help_text="Matrícula funcional do destinatário"
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if not self.cpf and not self.matricula_funcional:
+            raise ValidationError(
+                'É necessário informar CPF ou Matrícula Funcional para cadastrar um destinatário.'
+            )
+        if self.cpf and not validate_cpf(self.cpf):
+            raise ValidationError('CPF inválido.')
+        super().save(*args, **kwargs)
+
+    @property
+    def has_access(self) -> bool:
+        """Retorna True se o destinatário tem CPF ou matrícula cadastrada."""
+        return bool(self.cpf or self.matricula_funcional)
 
     def __str__(self):
         return f"{self.name} ({self.platform}: {self.identifier})"

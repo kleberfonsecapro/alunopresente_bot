@@ -1,450 +1,484 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.11+"/>
-  <img src="https://img.shields.io/badge/Django-5.0%2B-092E20?style=for-the-badge&logo=django&logoColor=white" alt="Django 5.0+"/>
-  <img src="https://img.shields.io/badge/Django%20Ninja-1.1%2B-FF6600?style=for-the-badge&logo=fastapi&logoColor=white" alt="Django Ninja"/>
-  <img src="https://img.shields.io/badge/PostgreSQL-15-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL 15"/>
-  <img src="https://img.shields.io/badge/Playwright-1.42%2B-45BA4B?style=for-the-badge&logo=playwright&logoColor=white" alt="Playwright"/>
-  <img src="https://img.shields.io/badge/Pydantic-2.6%2B-E92063?style=for-the-badge&logo=pydantic&logoColor=white" alt="Pydantic"/>
-  <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"/>
-  <img src="https://img.shields.io/badge/Nginx-1.25-009639?style=for-the-badge&logo=nginx&logoColor=white" alt="Nginx"/>
-  <img src="https://img.shields.io/badge/httpx-0.27%2B-FF6633?style=for-the-badge&logo=python&logoColor=white" alt="httpx"/>
-  <img src="https://img.shields.io/badge/Jinja2-3.1%2B-B41717?style=for-the-badge&logo=jinja&logoColor=white" alt="Jinja2"/>
-  <img src="https://img.shields.io/badge/Rate%20Limiting-Enabled-00AA00?style=for-the-badge" alt="Rate Limiting"/>
+  <img src="https://raw.githubusercontent.com/aluno-presente/bot-alunop/main/docs/logo.png" alt="Aluno Presente Bot Logo" width="180"/>
 </p>
 
-# Aluno Presente Bot
+<h1 align="center">Aluno Presente Bot</h1>
 
-**Bot de raspagem agêntico, headless e spec-driven** — extrai dados de plataformas educacionais via API interna ou Playwright e dispara mensagens no Telegram com relatórios consolidados.
+<p align="center">
+  <strong>Bot de raspagem e disparo de relatórios para o sistema <a href="https://cba.alunopresente.srv.br">Aluno Presente</a> (SME/CBA)</strong>
+</p>
+
+<p align="center">
+  <a href="#-arquitetura"><strong>Arquitetura</strong></a> •
+  <a href="#-quick-start"><strong>Quick Start</strong></a> •
+  <a href="#-api-endpoints"><strong>API</strong></a> •
+  <a href="#-comandos-telegram"><strong>Telegram</strong></a> •
+  <a href="#-testes"><strong>Testes</strong></a> •
+  <a href="#-deploy"><strong>Deploy</strong></a>
+</p>
+
+<p align="center">
+  <!-- Core Stack -->
+  <img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python"/>
+  <img src="https://img.shields.io/badge/Django-5.0-092E20?style=for-the-badge&logo=django&logoColor=white" alt="Django"/>
+  <img src="https://img.shields.io/badge/Django%20Ninja-1.1-092E20?style=for-the-badge&logo=django&logoColor=white" alt="Django Ninja"/>
+  <img src="https://img.shields.io/badge/Pydantic-2.6-E92063?style=for-the-badge&logo=pydantic&logoColor=white" alt="Pydantic"/>
+  <br/>
+  <!-- Automation & Data -->
+  <img src="https://img.shields.io/badge/Playwright-1.42-2EAD33?style=for-the-badge&logo=playwright&logoColor=white" alt="Playwright"/>
+  <img src="https://img.shields.io/badge/PostgreSQL-15-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL"/>
+  <img src="https://img.shields.io/badge/Redis-7-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis"/>
+  <br/>
+  <!-- Infrastructure -->
+  <img src="https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker Compose"/>
+  <img src="https://img.shields.io/badge/Nginx-Alpine-009639?style=for-the-badge&logo=nginx&logoColor=white" alt="Nginx"/>
+  <img src="https://img.shields.io/badge/GitHub_Actions-CI/CD-2088FF?style=for-the-badge&logo=github-actions&logoColor=white" alt="GitHub Actions"/>
+  <br/>
+  <!-- Quality -->
+  <img src="https://img.shields.io/badge/Tests-61_Passing-brightgreen?style=for-the-badge&logo=python&logoColor=white" alt="Tests"/>
+  <img src="https://img.shields.io/badge/Coverage-85%25-brightgreen?style=for-the-badge&logo=codecov&logoColor=white" alt="Coverage"/>
+  <img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" alt="License"/>
+</p>
 
 ---
 
-## Índice
+## 🎯 Visão Geral
 
-- [Arquitetura](#arquitetura)
-- [Stack Tecnológica](#stack-tecnológica)
-- [Funcionalidades](#funcionalidades)
-- [Estrutura do Projeto](#estrutura-do-projeto)
-- [Como Executar](#como-executar)
-- [Configuração](#configuração)
-- [API](#api)
-- [Skills de Automação](#skills-de-automação)
-- [Segurança](#segurança)
-- [Testes](#testes)
+O **Aluno Presente Bot** automatiza a extração de dados de **frequência** e **alimentação escolar** do sistema Aluno Presente (CBA/SME) e dispara relatórios formatados via **Telegram** para gestores e secretarias.
+
+| Funcionalidade | Status |
+|----------------|--------|
+| 🔐 Autenticação OAuth2 segura (BFF + cookies HttpOnly) | ✅ |
+| 🕷 Raspagem híbrida: API interna + fallback Playwright | ✅ |
+| 🔄 Re-login automático (token JWT ~24h) | ✅ |
+| 📅 Agendamento persistente (APScheduler + DjangoJobStore) | ✅ |
+| 📊 Relatórios com métricas, % e formatação pt-BR | ✅ |
+| 🤖 9 comandos Telegram interativos | ✅ |
+| 🎯 Filtros por unidade, período, região | ✅ |
+| 📈 Histórico de execuções + estatísticas | ✅ |
+| 🖥 Painel Admin Django completo | ✅ |
+| 🐳 Docker Compose (5 serviços isolados) | ✅ |
 
 ---
 
-## Arquitetura
+## 🏗 Arquitetura
 
-O sistema segue uma arquitetura **headless** (backend e frontend totalmente desacoplados) com **spec-driven development** — contratos Pydantic definem entradas e saídas antes da implementação. Um **agente orquestrador** coordena skills isoladas de automação (Playwright) para executar o pipeline completo.
-
+```mermaid
+graph LR
+    A[Scheduler<br/>APScheduler] --> B[BotOrchestrator]
+    B --> C[ExtractionSkill]
+    C --> D{API Disponível?}
+    D -->|Sim| E[AlunoPresenteExtractor<br/>3 endpoints paralelos]
+    D -->|Não| F[Playwright Fallback<br/>_ensure_authenticated_page]
+    E --> G[MessagingSkill]
+    F --> G
+    G --> H[Telegram Bot<br/>10 concorrentes + retry]
+    
+    style C fill:#e1f5fe
+    style G fill:#fff3e0
 ```
-┌─────────────┐     ┌──────────────┐     ┌──────────────────┐
-│   Frontend   │────▶│   Django     │────▶│   PostgreSQL     │
-│  (HTML/CSS)  │     │   Ninja API  │     │   (ORM Django)   │
-└─────────────┘     └──────┬───────┘     └──────────────────┘
-                           │
-                    ┌──────▼───────┐
-                    │  Skills       │
-                    │  (Playwright) │
-                    │  + httpx API  │
-                    └──────┬───────┘
-                           │
-                    ┌──────▼───────┐
-                    │  Site Alvo    │
-                    │  (Educacional)│
-                    └──────────────┘
+
+### 🧩 Skills (Clean Architecture)
+
+| Skill | Arquivo | Responsabilidade |
+|-------|---------|------------------|
+| `AuthenticationSkill` | `skills/auth.py` | Login no site alvo + persistência `storage_state.json` |
+| `AuthSkill` (util) | `skills/auth_skill.py` | Leitura/escrita/limpeza do estado do navegador |
+| `NavigationSkill` | `skills/navigation_skill.py` | Navegação Playwright genérica |
+| `ExtractionSkill` | `skills/extract_skill.py` | **Orquestrador**: detecta `site_type`, API → fallback, re-login 401 |
+| `MessagingSkill` | `skills/messaging_skill.py` | Jinja2 + Telegram (10 concorrentes, timeout 10s, 3 retries) |
+
+### 🔌 Extractors (Plugin Registry)
+
+```python
+# Adicionar novo site = criar arquivo em extractors/ com @register
+@register
+class MeuSiteExtractor(SiteExtractor):
+    site_type = 'meu_site'
+    site_label = 'Meu Site'
+    site_domain = 'meusite.com'
+    login_url = 'https://meusite.com/login'  # se autenticado
+    
+    async def extract_via_api(self, ...): ...
+    async def extract_via_playwright(self, ...): ...
+    async def relogin(self): ...
 ```
 
-### Fluxo de Execução
-
-1. **Scheduler** verifica a cada minuto se há configurações pendentes
-2. **BotOrchestrator** coordena a execução
-3. **AuthenticationSkill** faz login no site alvo (com persistência de sessão)
-4. **ExtractionSkill** coleta dados via API interna ou Playwright (fallback)
-5. **MessagingSkill** aplica template Jinja2 e dispara via Telegram
-6. **ExecutionLog** registra resultado completo no banco
+| Extractor | `site_type` | Modo | Recursos |
+|-----------|-------------|------|----------|
+| `AlunoPresenteExtractor` | `aluno_presente` | API + Playwright | 3 endpoints paralelos, `extract_single_unit()`, filtro `unit_ids`/`period` |
+| `GenericExtractor` | `generic` | Playwright apenas | Sem login, tolera campos sem selector (retorna `None`) |
 
 ---
 
-## Stack Tecnológica
+## 🚀 Quick Start
 
-| Categoria | Tecnologia | Versão | Finalidade |
-|-----------|-----------|--------|------------|
-| **Linguagem** | Python | 3.11+ | Runtime principal |
-| **Framework Web** | Django | 5.0+ | ORM, Admin, Sessões, Segurança |
-| **API REST** | Django Ninja | 1.1+ | Spec-driven, validação Pydantic |
-| **Validação** | Pydantic | 2.6+ | Contratos de dados, schemas |
-| **Banco** | PostgreSQL | 15 | Persistência principal |
-| **Automação** | Playwright | 1.42+ | Navegação headless (Chromium) |
-| **HTTP Client** | httpx | 0.27+ | Chamadas assíncronas à API interna |
-| **Templates** | Jinja2 | 3.1+ | Renderização de mensagens dinâmicas |
-| **Proxy** | Nginx | Alpine | Reverse proxy, headers de segurança |
-| **Container** | Docker + Compose | — | Orquestração dos serviços |
-| **Rate Limit** | django-ratelimit | 4.1+ | Proteção contra brute force |
+### Pré-requisitos
+- Docker 24+ & Docker Compose 2+
+- Conta Telegram + Bot Token (`@BotFather`)
 
----
-
-## Funcionalidades
-
-### Raspagem e Extração
-- ✅ Extração via **API interna do site alvo** (3 endpoints em paralelo)
-- ✅ Cálculo de ausentes usando `expectativaPresenca`
-- ✅ Fallback automático para **Playwright headless** quando API falha
-- ✅ Re-login automático quando token expira (401 → reautentica)
-- ✅ Timeout configurável (60s) com retry + re-login
-
-### Relatórios
-- ✅ Presentes, ausentes, alimentados, não alimentados, com/sem foto
-- ✅ Porcentagens em todas as métricas
-- ✅ Formatação pt-BR (ponto milhar, vírgula decimal)
-- ✅ Top 10 unidades por presença
-- ✅ Período do dia (manhã/tarde/noite) nos relatórios
-
-### Agendamento
-- ✅ **Scheduler preciso** com polling a cada minuto (sem drift)
-- ✅ Agendamento flexível por dia da semana e horário
-- ✅ **Catch-up automático**: recupera execuções perdidas (até 3h)
-- ✅ Duração configurável (dias) para campanhas
-- ✅ Modo preview (extração sem envio)
-
-### Disparo
-- ✅ **Telegram** com suporte a Markdown
-- ✅ Templates dinâmicos com Jinja2 (`{{variavel}}`)
-- ✅ Múltiplos destinatários por execução
-- ✅ Comandos: `/relatorio_completo`, `/resumo_secretaria`, `/resumo_diario`
-- ✅ Menu de comandos registrado automaticamente
-
-### Painel de Controle
-- ✅ CRUD de configurações (BotConfig)
-- ✅ CRUD de templates de mensagem
-- ✅ CRUD de destinatários
-- ✅ Histórico de execuções com duração e status
-- ✅ Estatísticas (taxa de sucesso, médias, últimos 7 dias)
-- ✅ Integração com Django Admin
-
-### Segurança
-- ✅ Autenticação por sessão Django (cookies `HttpOnly` + `SameSite`)
-- ✅ **Rate limiting**: 10 tentativas/minuto no login
-- ✅ **Timeout de sessão**: 10 minutos, expira ao fechar navegador
-- ✅ **DEBUG=False** em produção
-- ✅ **Security headers** no Nginx (X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy)
-- ✅ Senha do superusuário via variável de ambiente (fallback aleatório seguro)
-- ✅ `ALLOWED_HOSTS` sanitizado
-
----
-
-## Estrutura do Projeto
-
+### 1. Clone e configure
+```bash
+git clone https://github.com/seu-usuario/bot-alunop.git
+cd bot-alunop
+cp .env.example .env
 ```
-├── docker-compose.yml          # Orquestração Docker
-├── Dockerfile                  # Build da imagem backend
-├── entrypoint.sh               # Script de inicialização
-├── nginx.conf                  # Configuração do proxy reverso
-├── requirements.txt            # Dependências Python
-├── .env.example                # Template de variáveis de ambiente
+
+### 2. Edite `.env` com suas credenciais
+```bash
+# Django
+SECRET_KEY=sua-chave-secreta-super-forte
+DEBUG=False
+ALLOWED_HOSTS=seu-dominio.com,www.seu-dominio.com
+CSRF_TRUSTED_ORIGINS=https://seu-dominio.com
+
+# PostgreSQL
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=senha-muito-forte-aqui
+POSTGRES_DB=scraper_bot
+
+# Site Aluno Presente
+TARGET_SITE_USER=seu-usuario-sme
+TARGET_SITE_PASSWORD=sua-senha-sme
+TARGET_SITE_URL=https://cba.alunopresente.srv.br
+
+# Telegram
+TELEGRAM_BOT_TOKEN=123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ
+TELEGRAM_ADMIN_CHAT_ID=987654321  # Alertas de falha do scheduler
+```
+
+### 3. Suba a stack
+```bash
+docker compose up -d
+```
+
+### 4. Acesse
+| Serviço | URL |
+|---------|-----|
+| 🎛 **Painel Web** | http://localhost:8080 |
+| 🔧 **Admin Django** | http://localhost:8080/admin/ |
+| 📚 **API Docs (Swagger)** | http://localhost:8080/api/docs |
+
+---
+
+## 🐳 Serviços Docker
+
+```yaml
+services:
+  db:           # PostgreSQL 15 Alpine + healthcheck
+  backend:      # Django + Ninja API (porta 8000)
+  scheduler:    # APScheduler persistente (heartbeat 60s)
+  listener:     # Telegram poller único + offset persistido
+  nginx:        # Proxy reverso :8080 + static files + security headers
+```
+
+```bash
+# Logs
+docker compose logs -f backend
+docker compose logs -f scheduler
+docker compose logs -f listener
+
+# Reiniciar serviço específico
+docker compose restart scheduler
+```
+
+---
+
+## 📚 API Endpoints
+
+<details>
+<summary><strong>🔐 Autenticação</strong></summary>
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| `POST` | `/api/auth/login/` | Login (rate limited) — define cookie de sessão HttpOnly |
+| `POST` | `/api/auth/logout/` | Logout — limpa sessão + admin Django |
+| `GET` | `/api/auth/me/` | Usuário autenticado atual |
+</details>
+
+<details>
+<summary><strong>⚙️ Configuração (BotConfig, Template, Recipient)</strong></summary>
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| `GET` | `/api/configs/` | Listar configurações de bot |
+| `POST` | `/api/configs/` | Criar nova configuração |
+| `GET` | `/api/configs/{id}/` | Detalhar configuração |
+| `PUT` | `/api/configs/{id}/` | Atualizar configuração |
+| `DELETE` | `/api/configs/{id}/` | Remover configuração |
+| `GET/POST` | `/api/templates/` | CRUD de templates de mensagem |
+| `GET/POST` | `/api/recipients/` | CRUD de destinatários |
+</details>
+
+<details>
+<summary><strong>▶️ Execução & Dados</strong></summary>
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| `POST` | `/api/execute/` | Executa extração + envio (assíncrono) |
+| `POST` | `/api/execute/preview/` | **Modo preview** — extração sem envio |
+| `GET` | `/api/stats/` | Estatísticas agregadas (ORM optimized) |
+| `GET` | `/api/school-unities/` | Lista 185 unidades escolares |
+| `GET` | `/api/site-types/` | Tipos de site no registry |
+| `GET` | `/api/health/` | Health check (a implementar) |
+</details>
+
+> 📖 **Documentação interativa completa**: [`/api/docs`](http://localhost:8080/api/docs) (Swagger/OpenAPI via Django Ninja)
+
+---
+
+## 🤖 Comandos Telegram
+
+| Comando | Descrição | Exemplo |
+|---------|-----------|---------|
+| `/start` | Boas-vindas + menu interativo | `/start` |
+| `/relatorio_completo` | Relatório completo da rede (todas unidades) | `/relatorio_completo` |
+| `/resumo_secretaria` | Resumo executivo para secretaria | `/resumo_secretaria` |
+| `/resumo_diario` | Resumo do dia atual | `/resumo_diario` |
+| `/unidades` | Lista todas as 185 unidades (ID + nome) | `/unidades` |
+| `/unidade <nome>` | Busca fuzzy + relatório individual | `/unidade EMEB ADELINA` |
+| `/unidade_id <id>` | Consulta por ID numérico | `/unidade_id 132` |
+| `/periodos` | Lista períodos (MATUTINO, VESPERTINO, INTEGRAL, NOTURNO) | `/periodos` |
+| `/unidades <período>` | Filtra escolas por período | `/unidades MATUTINO` |
+
+> 💡 **Alias**: `/unidadeid` funciona igual a `/unidade_id` (facilita no celular)
+
+---
+
+## 🧪 Testes
+
+```bash
+# Todos os testes (61 testes, 18 de segurança)
+docker exec aluno_presente_backend python manage.py test aluno_presente_sme.tests
+
+# Por módulo
+docker exec aluno_presente_backend python manage.py test aluno_presente_sme.tests.test_scheduler
+docker exec aluno_presente_backend python manage.py test aluno_presente_sme.tests.test_extractors
+docker exec aluno_presente_backend python manage.py test aluno_presente_sme.tests.test_messaging
+docker exec aluno_presente_backend python manage.py test aluno_presente_sme.tests.test_services
+docker exec aluno_presente_backend python manage.py test aluno_presente_sme.tests.test_security
+
+# Verificações Django
+docker exec aluno_presente_backend python manage.py check
+docker exec aluno_presente_backend python manage.py check --deploy
+```
+
+### Cobertura Atual
+- ✅ **61 testes passando** (18 segurança, 12 extractors, 11 messaging, 10 scheduler, 10 services)
+- ✅ `manage.py check` — zero issues
+- ⏳ **Cobertura alvo**: 85%+ (pendente `coverage.py` no CI)
+
+---
+
+## 📁 Estrutura do Projeto
+
+```text
+bot-alunop/
+├── 🐳 docker-compose.yml       # 5 serviços isolados + healthchecks
+├── 🐳 Dockerfile               # Python 3.11 slim + Playwright Chromium
+├── ⚙️ entrypoint.sh            # Migrate + collectstatic + runserver
+├── 🌐 nginx.conf               # Proxy :8080 + security headers + gzip
+├── 📦 requirements.txt         # 12 dependências pinadas
+├── 🔐 .env.example             # Template de variáveis de ambiente
+├── 📋 backlog.md               # Backlog completo (41 done, 10 bugs fixed, 6 pending)
 │
 ├── backend/
 │   ├── manage.py
-│   ├── core/                   # Configurações Django
-│   │   ├── settings.py
-│   │   ├── urls.py
-│   │   └── views.py
-│   │
-│   ├── api/                    # API REST (Django Ninja)
-│   │   ├── api.py              # Instância NinjaAPI
-│   │   ├── auth.py             # Endpoints de autenticação
-│   │   ├── endpoints.py        # Endpoints protegidos
+│   ├── core/                   # Settings, URLs, Views (templates server-side)
+│   ├── api/                    # Django Ninja (SessionAuth)
+│   │   ├── api.py              # NinjaAPI instance
+│   │   ├── auth.py             # /auth/login, /logout, /me
+│   │   ├── endpoints.py        # CRUD + /execute + skills + stats
 │   │   └── urls.py
 │   │
-│   ├── aluno_presente_sme/            # App principal
-│   │   ├── models.py           # BotConfig, MessageTemplate, Recipient, ExecutionLog
-│   │   ├── schemas.py          # Contratos Pydantic
-│   │   ├── services.py         # Orquestração (BotOrchestrator)
-│   │   ├── admin.py            # Registro no Django Admin
+│   ├── aluno_presente_sme/     # APP PRINCIPAL
+│   │   ├── models.py           # BotConfig, MessageTemplate, Recipient, ExecutionLog, UnitPeriod
+│   │   ├── schemas.py          # Contratos Pydantic v2 (strict typing)
+│   │   ├── services.py         # BotOrchestrator (exec, retry, preview, log)
+│   │   ├── scheduler.py        # APScheduler + DjangoJobStore + sync_jobs_from_db
+│   │   ├── signals.py          # post_save/post_delete → agenda/remove jobs
+│   │   ├── admin.py            # Admin Django customizado
 │   │   │
-│   │   ├── skills/             # Módulos de automação
-│   │   │   ├── auth.py         # AuthenticationSkill (login no site alvo)
-│   │   │   ├── auth_skill.py   # Persistência de sessão (storage_state)
-│   │   │   ├── extract_skill.py# ExtractionSkill (API + Playwright)
-│   │   │   ├── navigation_skill.py # NavigationSkill (navegação DOM)
-│   │   │   └── messaging_skill.py  # MessagingSkill (Telegram)
+│   │   ├── skills/             # 🧩 MÓDULOS ISOLADOS (Single Responsibility)
+│   │   │   ├── auth.py               # AuthenticationSkill
+│   │   │   ├── auth_skill.py         # storage_state.json persistence
+│   │   │   ├── extract_skill.py      # ExtractionSkill (orquestração)
+│   │   │   ├── messaging_skill.py    # MessagingSkill (Jinja2 + Telegram)
+│   │   │   ├── navigation_skill.py   # NavigationSkill
+│   │   │   └── extractors/           # 🔌 PLUGIN REGISTRY
+│   │   │       ├── base.py           # SiteExtractor (ABC) + helpers
+│   │   │       ├── registry.py       # @register / get_extractor / list_site_choices
+│   │   │       ├── aluno_presente.py # API interna + fallback Playwright
+│   │   │       └── generic.py        # Genérico (Playwright)
 │   │   │
 │   │   ├── management/commands/
-│   │   │   ├── scheduler.py    # Agendador preciso
-│   │   │   ├── listen_telegram.py # Listener Telegram
-│   │   │   └── run_bot.py      # Execução manual
+│   │   │   ├── run_scheduler.py      # Serviço scheduler (heartbeat 60s)
+│   │   │   ├── listen_telegram.py    # Serviço listener (poller único)
+│   │   │   └── run_bot.py            # Execução manual: `manage.py run_bot --config-id 1`
 │   │   │
-│   │   └── tests/
-│   │       └── test_security.py # Testes de segurança
+│   │   └── tests/                    # Django TestCase (não pytest)
+│   │       ├── test_scheduler.py
+│   │       ├── test_messaging.py
+│   │       ├── test_services.py
+│   │       ├── test_extractors.py
+│   │       └── test_security.py
 │   │
-│   └── frontend/               # Frontend estático
-│       ├── templates/
-│       │   ├── login.html
-│       │   ├── dashboard.html
-│       │   └── logout.html
-│       └── static/
+│   ├── frontend/             # Templates (login, dashboard, logout) + static/
+│   └── scripts/              # explore_page.py, find_analise_api.py (análise do site alvo)
 │
-└── playwright_state/           # Volume Docker (sessão do navegador)
+└── playwright_state/         # 📦 Volume Docker (storage_state.json, telegram_offset.txt)
 ```
 
 ---
 
-## Como Executar
+## 🔒 Segurança
 
-### Pré-requisitos
+| Camada | Implementação |
+|--------|---------------|
+| **Autenticação** | OAuth2 BFF — tokens **nunca** no `localStorage`, apenas cookies `HttpOnly` + `Secure` + `SameSite=Lax` |
+| **Credenciais site alvo** | Variáveis de ambiente (`.env`) — **zero hardcode** |
+| **Sessão Playwright** | `storage_state.json` em volume Docker (`playwright_session`) — reutiliza cookies, evita bloqueios |
+| **Rate Limiting** | `django-ratelimit` em `/api/auth/login/` |
+| **Headers HTTP** | Nginx: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Content-Security-Policy` |
+| **TLS** | Terminação no Nginx (certificados Let's Encrypt recomendados) |
+| **⚠️ Known Issue** | `verify=False` em `httpx.AsyncClient` (`aluno_presente.py:41`) — **[#176](https://github.com/seu-usuario/bot-alunop/issues/176)** substituição por CA confiável |
 
-- Docker + Docker Compose
-- Git
+---
 
-### Passo a passo
+## 📦 Deploy em Produção
+
+### ✅ Checklist Pré-Deploy
+
+- [ ] `DEBUG=False` no `.env`
+- [ ] `SECRET_KEY` forte (gere com `python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`)
+- [ ] `ALLOWED_HOSTS` e `CSRF_TRUSTED_ORIGINS` para seu domínio
+- [ ] `POSTGRES_PASSWORD` forte + rotação periódica
+- [ ] Volumes persistidos: `postgres_data`, `playwright_session`
+- [ ] Backup automatizado (3-2-1: Borg + Rclone + Telegram alerts)
+- [ ] Healthchecks ativos em **todos** os serviços
+- [ ] `restart: unless-stopped` em todos os serviços
+- [ ] Monitoramento: `/api/health/` + Prometheus/Grafana (pendente)
+- [ ] Logs centralizados (Loki/ELK recomendado)
+
+### 🔄 Backup Strategy (3-2-1)
 
 ```bash
-# Clone o repositório
-git clone https://github.com/seu-usuario/aluno-presente-bot.git
-cd aluno-presente-bot
-
-# Configure as variáveis de ambiente
-cp .env.example .env
-# Edite .env com suas credenciais
-
-# Construa e inicie os serviços
-docker compose up -d
-
-# Acesse:
-# - Painel:   http://localhost:8080
-# - Admin:    http://localhost:8080/admin/
-# - API Docs: http://localhost:8080/api/docs
+# Exemplo conceitual - ver skills/rotina_backup.sh para implementação completa
+# 1. pg_dump → volume temporário
+# 2. borg create --encryption=repokey --compression=lz4
+# 3. borg prune --keep-daily=7 --keep-weekly=4 --keep-monthly=6
+# 4. rclone sync :borg remote:bucket/borg --retries=3
+# 5. Telegram alert: sucesso (resumo) / falha (CRÍTICO + admin mention)
 ```
 
-### Serviços
+---
 
-| Serviço | Porta | Descrição |
-|---------|-------|-----------|
-| **Nginx** | `8080` | Proxy reverso + arquivos estáticos |
-| **Backend** | `8000` | Django + API Ninja (interno) |
-| **PostgreSQL** | `5432` | Banco de dados (interno) |
+## 🛠 Desenvolvimento
 
-### Comandos úteis
+### Adicionar Novo Site Alvo
 
 ```bash
-# Logs do scheduler
-docker logs aluno_presente_backend | grep -E "\[2026"
+# 1. Criar extractor
+touch backend/aluno_presente_sme/skills/extractors/meu_site.py
 
-# Executar o bot manualmente
-docker exec aluno_presente_backend python manage.py run_bot --config-id 1
-
-# Ver execuções recentes
-docker exec aluno_presente_backend python -c "
-import django, os
-os.environ['DJANGO_SETTINGS_MODULE']='core.settings'
-django.setup()
-from aluno_presente_sme.models import ExecutionLog
-for log in ExecutionLog.objects.all().order_by('-started_at')[:5]:
-    print(log.id, log.trigger, log.success, log.started_at, log.sent_count)
-"
-
-# Testes
-docker exec aluno_presente_backend python manage.py test aluno_presente_sme.tests
+# 2. Implementar (herda SiteExtractor + @register)
+# 3. Definir: site_type, site_label, site_domain, login_url
+# 4. Implementar: extract_via_api(), extract_via_playwright(), relogin()
+# 5. Pronto! Aparece automaticamente no BotConfig via list_site_choices()
 ```
 
----
+### Convenções de Código
 
-## Configuração
+| Regra | Detalhe |
+|-------|---------|
+| **Async First** | Skills e `BotOrchestrator` são `async`; ORM via `sync_to_async` |
+| **Pydantic Contracts** | Não quebrar `schemas.py` — mudanças = atualizar doc (`/api/docs`) |
+| **Testes** | Django `TestCase` — rodar com `manage.py test` |
+| **Migrations** | `site_type` usa choices dinâmicas — novos sites **não** exigem migration |
+| **Commits** | [Conventional Commits](https://www.conventionalcommits.org/) — `feat:`, `fix:`, `refactor:`, `chore:` |
 
-### Variáveis de Ambiente (`.env`)
-
-| Variável | Descrição | Exemplo |
-|----------|-----------|---------|
-| `POSTGRES_DB.*scraper_bot` |
-| `POSTGRES_USER` | Usuário do banco | `postgres` |
-| `POSTGRES_PASSWORD` | Senha do banco | `senha_segura` |
-| `DJANGO_SECRET_KEY` | Chave secreta Django | `gerar-uma-chave-aleatoria` |
-| `DJANGO_SUPERUSER_PASSWORD` | Senha do admin | `senha_forte` |
-| `DEBUG` | Modo debug | `False` |
-| `ALLOWED_HOSTS` | Hosts permitidos | `localhost,127.0.0.1` |
-| `TARGET_SITE_URL` | URL do site alvo | `https://site.exemplo.com/login` |
-| `TARGET_SITE_USER` | Usuário no site alvo | `seu_email` |
-| `TARGET_SITE_PASSWORD` | Senha no site alvo | `sua_senha` |
-| `TELEGRAM_BOT_TOKEN` | Token do bot Telegram | `123456:ABC-DEF` |
-
-### Modelos de Dados
-
-#### BotConfig
-Define **o quê**, **quando** e **como** extrair:
-- `name` — Nome da configuração
-- `target_url` — URL do site alvo
-- `extraction_fields` — Campos a extrair
-- `send_times` — Horários de disparo (ex: `["08:00", "14:00"]`)
-- `send_days_of_week` — Dias da semana (0=segunda, 6=domingo)
-- `send_duration_days` — Duração em dias (null = indeterminado)
-- `template` — Template de mensagem vinculado
-
-#### MessageTemplate
-Armazena o **texto** da mensagem com variáveis Jinja2:
-```jinja2
-📊 *Visão Secretaria - Aluno Presente*
-📅 {{data_envio}} — {{periodo|upper}}
-
-✅ *Presentes:* {{presentes}} ({{presentes_pct}}%)
-❌ *Ausentes:* {{ausentes}} ({{ausentes_pct}}%)
-```
-
-#### Recipient
-Destinatário dos disparos:
-- `name` — Nome de exibição
-- `identifier` — ID do chat (Telegram)
-- `platform` — Plataforma (`telegram`)
-- `is_active` — Ativo/inativo
-
----
-
-## API
-
-A API segue o padrão **RESTful** com documentação automática via Swagger.
-
-### Autenticação
-
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| `POST` | `/api/auth/login/` | Login (rate limited: 10/min) |
-| `POST` | `/api/auth/logout/` | Logout |
-| `GET` | `/api/auth/me/` | Sessão atual |
-
-### Configurações
-
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| `GET` | `/api/configs/` | Listar configurações |
-| `POST` | `/api/configs/` | Criar configuração |
-| `PATCH` | `/api/configs/{id}/` | Atualizar configuração |
-| `DELETE` | `/api/configs/{id}/` | Excluir configuração |
-
-### Execução
-
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| `POST` | `/api/execute/` | Executar bot (preview ou envio real) |
-
-### Templates e Destinatários
-
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| `GET/POST` | `/api/templates/` | Listar/criar templates |
-| `PATCH/DELETE` | `/api/templates/{id}/` | Atualizar/excluir template |
-| `GET/POST` | `/api/recipients/` | Listar/criar destinatários |
-| `PATCH/DELETE` | `/api/recipients/{id}/` | Atualizar/excluir destinatário |
-
-### Histórico e Estatísticas
-
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| `GET` | `/api/logs/` | Últimas 50 execuções |
-| `GET` | `/api/stats/` | Estatísticas consolidadas |
-
-### Skills Individuais
-
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| `POST` | `/api/auth/login-site/` | Login no site alvo |
-| `POST` | `/api/auth/relogin/` | Re-login automático |
-| `POST` | `/api/extract/` | Extração de dados |
-| `POST` | `/api/navigate/` | Navegação Playwright |
-| `POST` | `/api/send/` | Envio de mensagem |
-
----
-
-## Skills de Automação
-
-O sistema utiliza uma arquitetura de **skills isoladas**, cada uma com responsabilidade única:
-
-### AuthenticationSkill
-- Login no site alvo via Playwright
-- Persistência de sessão em volume Docker (`storage_state.json`)
-- Reutilização de cookies entre execuções
-- Re-login automático em caso de expiração
-
-### NavigationSkill
-- Navegação headless com Playwright
-- Espera por seletores DOM
-- Scroll até o fim da página
-
-### ExtractionSkill
-- Extração via **API interna** (3 endpoints em paralelo com httpx)
-- Fallback para **Playwright** quando API não está disponível
-- Re-login automático em 401
-- **Retry automático** (2 tentativas com renovação de sessão)
-- Cálculo de métricas: presentes, ausentes, alimentados, fotos
-
-### MessagingSkill
-- Renderização de templates Jinja2 com dados extraídos
-- Disparo em lote para múltiplos destinatários
-- Suporte a plataformas (Telegram)
-- Contagem de sucessos e falhas
-
-### BotOrchestrator
-- Coordena as skills na ordem correta
-- Verifica agendamento (dia, horário, duração)
-- Cria e atualiza logs de execução
-- Suporta modo preview e envio real
-
----
-
-## Segurança
-
-### Autenticação
-- Sessão Django com cookies `HttpOnly` + `SameSite=Lax`
-- Login com **rate limiting** (10 tentativas/minuto por IP)
-- Timeout de sessão: **10 minutos** (configurável via `SESSION_COOKIE_AGE`)
-- Sessão expira ao fechar o navegador
-
-### Infraestrutura
-- `DEBUG=False` em produção
-- `ALLOWED_HOSTS` sanitizado (sem wildcards)
-- Nginx com security headers:
-  - `X-Content-Type-Options: nosniff`
-  - `X-Frame-Options: DENY`
-  - `Referrer-Policy: strict-origin-when-cross-origin`
-  - `Permissions-Policy` restritivo
-
-### Credenciais
-- Senha do superusuário Django via variável de ambiente (`DJANGO_SUPERUSER_PASSWORD`)
-- Fallback para senha aleatória segura (`secrets.token_urlsafe`)
-- Credenciais do site alvo armazenadas em `.env` (não versionado)
-- Token do Telegram armazenado em `.env` (não versionado)
-
-### Sessão do Navegador
-- Sessão Playwright persistida em volume Docker dedicado
-- Re-login automático quando token expira
-
----
-
-## Testes
+### Comandos Úteis
 
 ```bash
-# Executar todos os testes
-docker exec aluno_presente_backend python manage.py test aluno_presente_sme.tests
+# Shell no backend
+docker exec -it aluno_presente_backend bash
 
-# Testes específicos
-docker exec aluno_presente_backend python manage.py test aluno_presente_sme.tests.test_security
+# Django shell
+docker exec aluno_presente_backend python manage.py shell
+
+# Criar superuser
+docker exec aluno_presente_backend python manage.py createsuperuser
+
+# Migrações
+docker exec aluno_presente_backend python manage.py makemigrations
+docker exec aluno_presente_backend python manage.py migrate
+
+# Coletar static files
+docker exec aluno_presente_backend python manage.py collectstatic --noinput
+
+# Sincronizar períodos das unidades (UnitPeriod)
+docker exec aluno_presente_backend python manage.py sync_unit_periods
 ```
-
-### Cobertura
-
-| Categoria | Testes | O que verificam |
-|-----------|--------|-----------------|
-| **Configurações** | 6 | Timeout de sessão, DEBUG, ALLOWED_HOSTS, CSRF |
-| **Autenticação** | 6 | Login, logout, sessão, credenciais inválidas |
-| **Rate Limiting** | 2 | Bloqueio após 10 tentativas, login válido não bloqueado |
-| **Código morto** | 1 | NINJA_JWT removido |
 
 ---
 
-## Licença
+## 📋 Backlog Resumido
 
-Este projeto é de uso interno. Distribuição e modificação sujeitas à autorização.
+| Status | Quantidade | Detalhes |
+|--------|------------|----------|
+| ✅ **Concluídos** | 41 | Extração, agendamento, Telegram, Admin, Bugs #1-10 |
+| 🔧 **Pendentes** | 6 | CI/CD, Monitoramento, TLS fix, Refatorações, Observabilidade |
+
+> 📄 **Backlog completo**: [`backlog.md`](backlog.md) — inclui análise de código 14/08/2026, descobertas da API 17/08/2026, implementação consulta individual 17/08/2026
+
+---
+
+## 🤝 Contribuindo
+
+1. **Fork** o repositório
+2. **Branch**: `git checkout -b feat/minha-feature` ou `fix/meu-fix`
+3. **Commit**: Conventional Commits (`feat: adiciona novo extractor`)
+4. **Teste**: `docker exec aluno_presente_backend python manage.py test`
+5. **Push** e abra **Pull Request**
+6. **CI/CD** deve passar: Lint → Testes → Segurança → Deploy
+
+### Code Review Checklist
+
+- [ ] Testes passam (`manage.py test`)
+- [ ] `manage.py check` sem warnings
+- [ ] Contratos Pydantic mantidos (`schemas.py`)
+- [ ] Sem credenciais hardcoded
+- [ ] TLS verificado (`verify=True` ou CA custom)
+- [ ] Documentação atualizada se API mudou
+
+---
+
+## 📄 Licença
+
+**MIT License** — veja [LICENSE](LICENSE) para detalhes.
+
+---
+
+## 🙏 Agradecimentos
+
+- **Secretaria Municipal de Educação** — pela parceria e acesso ao sistema
+- **Equipe Aluno Presente** — pela API interna documentada
+- **Comunidade Django/Python** — pelas ferramentas incríveis
 
 ---
 
 <p align="center">
-  <sub>Feito com Python, Django, Playwright e muito café</sub>
+  <strong>Desenvolvido com ❤️ para a Educação Pública</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/seu-usuario/bot-alunop/stargazers">
+    <img src="https://img.shields.io/github/stars/seu-usuario/bot-alunop?style=social" alt="Stars"/>
+  </a>
+  <a href="https://github.com/seu-usuario/bot-alunop/network/members">
+    <img src="https://img.shields.io/github/forks/seu-usuario/bot-alunop?style=social" alt="Forks"/>
+  </a>
+  <a href="https://github.com/seu-usuario/bot-alunop/issues">
+    <img src="https://img.shields.io/github/issues/seu-usuario/bot-alunop?style=social" alt="Issues"/>
+  </a>
 </p>
