@@ -6,7 +6,7 @@ from pathlib import Path
 import httpx
 from django.core.management.base import BaseCommand
 
-from aluno_presente_sme.models import BotConfig, ExecutionLog, Recipient, validate_cpf
+from aluno_presente_sme.models import BotConfig, ExecutionLog, MessageTemplate, Recipient, validate_cpf
 from aluno_presente_sme.schemas import BotExecutionInput
 from aluno_presente_sme.services import BotOrchestrator
 
@@ -98,19 +98,19 @@ class Command(BaseCommand):
                 self._send_telegram(token, chat_id, MSG_NAO_CADASTRADO)
                 return
             self._send_status(token, chat_id, 'Gerando relatório completo...')
-            self._run_report(token, chat_id, template_id=4)
+            self._run_report(token, chat_id, template_name='Visão Completa')
         elif cmd in ('/resumo_secretaria',):
             if not self._has_access(chat_id):
                 self._send_telegram(token, chat_id, MSG_NAO_CADASTRADO)
                 return
             self._send_status(token, chat_id, 'Gerando resumo...')
-            self._run_report(token, chat_id, template_id=1)
+            self._run_report(token, chat_id, template_name='Resumo Visão Secretaria')
         elif cmd in ('/resumo_diario', '/diario'):
             if not self._has_access(chat_id):
                 self._send_telegram(token, chat_id, MSG_NAO_CADASTRADO)
                 return
             self._send_status(token, chat_id, 'Gerando resumo diário...')
-            self._run_report(token, chat_id, template_id=3)
+            self._run_report(token, chat_id, template_name='Resumo Diario')
         elif cmd in ('/relatorio',):
             if not self._has_access(chat_id):
                 self._send_telegram(token, chat_id, MSG_NAO_CADASTRADO)
@@ -406,13 +406,23 @@ class Command(BaseCommand):
         except Exception as e:
             self.stdout.write(self.style.WARNING(f'Erro ao registrar comandos: {e}'))
 
-    def _run_report(self, token: str, chat_id: str, template_id: int | None = None, unit_id: int | None = None):
+    def _run_report(self, token: str, chat_id: str, template_id: int | None = None, template_name: str | None = None, unit_id: int | None = None):
         config = BotConfig.objects.filter(is_active=True).first()
         if not config:
             self._send_status(token, chat_id, 'Nenhuma configuração ativa encontrada.')
             return
 
-        tid = template_id or config.template_id
+        tid = template_id
+        if tid is None and template_name is not None:
+            template = MessageTemplate.objects.filter(name=template_name).first()
+            if not template:
+                self._send_status(
+                    token, chat_id,
+                    f'Template "{template_name}" não encontrado. Verifique as configurações no painel.'
+                )
+                return
+            tid = template.id
+        tid = tid or config.template_id
         if not tid:
             self._send_status(token, chat_id, 'Nenhum template configurado.')
             return
@@ -547,7 +557,7 @@ class Command(BaseCommand):
         if len(matches) == 1:
             unit_id = matches[0]['id']
             self._send_status(token, chat_id, f'Consultando {matches[0]["nome"]}...')
-            self._run_report(token, chat_id, template_id=7, unit_id=unit_id)
+            self._run_report(token, chat_id, template_name='Consulta Unidade Individual', unit_id=unit_id)
             return
 
         lines = [f'*{len(matches)} escolas encontradas para "{query}":*\n']

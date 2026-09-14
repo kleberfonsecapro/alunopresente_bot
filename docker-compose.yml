@@ -31,7 +31,7 @@ services:
       - playwright_session:/app/playwright_state
       - staticfiles:/app/staticfiles
     ports:
-      - "8000:8000"
+      - "8001:8000"
     dns:
       - 8.8.8.8
       - 1.1.1.1
