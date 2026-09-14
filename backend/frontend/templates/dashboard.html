@@ -123,6 +123,8 @@
                     <div class="form-group"><label>Nome</label><input id="recipientName" placeholder="João"></div>
                     <div class="form-group"><label>Identificador</label><input id="recipientId" placeholder="+5511999999999"></div>
                     <div class="form-group"><label>Plataforma</label><select id="recipientPlatform"><option value="whatsapp">WhatsApp</option><option value="telegram">Telegram</option><option value="email">E-mail</option><option value="sms">SMS</option></select></div>
+                    <div class="form-group"><label>CPF (formato: XXX.XXX.XXX-XX)</label><input id="recipientCpf" placeholder="000.000.000-00"></div>
+                    <div class="form-group"><label>Matrícula Funcional</label><input id="recipientMatricula" placeholder="Ex: 123456"></div>
                     <input type="hidden" id="recipientEditingId" value="">
                     <button class="btn btn-primary" onclick="saveRecipient()" id="recipientSaveBtn">Salvar</button>
                     <button class="btn btn-warning hidden" onclick="cancelRecipientEdit()" id="recipientCancelBtn">Cancelar</button>
@@ -333,13 +335,15 @@
             const data = await api('/api/recipients/', { method: 'GET' });
             const list = document.getElementById('recipientList');
             if (!data) return;
-            list.innerHTML = data.map(r => `<div class="list-item"><span>${r.name}<br><small style="color:#94a3b8">${r.platform}: ${r.identifier}${r.is_active === false ? ' (inativo)' : ''}</small></span><span><button class="btn btn-sm btn-primary" onclick="editRecipient(${r.id})">Editar</button> <button class="btn btn-sm btn-danger" onclick="deleteRecipient(${r.id})">Excluir</button></span></div>`).join('');
+            list.innerHTML = data.map(r => `<div class="list-item"><span>${r.name}<br><small style="color:#94a3b8">${r.platform}: ${r.identifier}${r.is_active === false ? ' (inativo)' : ''}${r.cpf ? '<br>CPF: ' + r.cpf : ''}${r.matricula_funcional ? '<br>Matrícula: ' + r.matricula_funcional : ''}</small></span><span><button class="btn btn-sm btn-primary" onclick="editRecipient(${r.id})">Editar</button> <button class="btn btn-sm btn-danger" onclick="deleteRecipient(${r.id})">Excluir</button></span></div>`).join('');
         }
         function cancelRecipientEdit() {
             document.getElementById('recipientEditingId').value = '';
             document.getElementById('recipientName').value = '';
             document.getElementById('recipientId').value = '';
             document.getElementById('recipientPlatform').value = 'whatsapp';
+            document.getElementById('recipientCpf').value = '';
+            document.getElementById('recipientMatricula').value = '';
             document.getElementById('recipientSaveBtn').textContent = 'Salvar';
             document.getElementById('recipientCancelBtn').classList.add('hidden');
         }
@@ -352,6 +356,8 @@
             document.getElementById('recipientName').value = r.name;
             document.getElementById('recipientId').value = r.identifier;
             document.getElementById('recipientPlatform').value = r.platform;
+            document.getElementById('recipientCpf').value = r.cpf || '';
+            document.getElementById('recipientMatricula').value = r.matricula_funcional || '';
             document.getElementById('recipientSaveBtn').textContent = 'Atualizar';
             document.getElementById('recipientCancelBtn').classList.remove('hidden');
         }
@@ -365,10 +371,12 @@
             const name = document.getElementById('recipientName').value;
             const identifier = document.getElementById('recipientId').value;
             const platform = document.getElementById('recipientPlatform').value;
+            const cpf = document.getElementById('recipientCpf').value || '';
+            const matricula_funcional = document.getElementById('recipientMatricula').value || '';
             if (id) {
-                await api('/api/recipients/' + id + '/', { method: 'PATCH', body: JSON.stringify({ name, identifier, platform }) });
+                await api('/api/recipients/' + id + '/', { method: 'PATCH', body: JSON.stringify({ name, identifier, platform, cpf, matricula_funcional }) });
             } else {
-                await api('/api/recipients/', { method: 'POST', body: JSON.stringify({ name, identifier, platform }) });
+                await api('/api/recipients/', { method: 'POST', body: JSON.stringify({ name, identifier, platform, cpf, matricula_funcional }) });
             }
             cancelRecipientEdit();
             loadRecipients();

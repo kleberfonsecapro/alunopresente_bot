@@ -1,9 +1,12 @@
 import logging
 from ninja import Router
+from ninja.errors import HttpError
 from ninja.security import SessionAuth
 
-from aluno_presente_sme.models import BotConfig, ExecutionLog, MessageTemplate, Recipient
+from django.core.exceptions import ValidationError
 from django.db.models import Avg, Count, Sum
+
+from aluno_presente_sme.models import BotConfig, ExecutionLog, MessageTemplate, Recipient
 
 logger = logging.getLogger(__name__)
 from django.db.models.functions import TruncDate
@@ -239,7 +242,10 @@ def list_recipients(request):
 
 @router.post('/recipients/', response=dict)
 def create_recipient(request, payload: RecipientInput):
-    recipient = Recipient.objects.create(**payload.model_dump())
+    try:
+        recipient = Recipient.objects.create(**payload.model_dump())
+    except ValidationError as e:
+        raise HttpError(400, '; '.join(e.messages))
     return _model_to_dict(recipient, [
         'id', 'name', 'identifier', 'platform', 'cpf', 'matricula_funcional',
         'is_active', 'created_at'
@@ -248,10 +254,15 @@ def create_recipient(request, payload: RecipientInput):
 
 @router.patch('/recipients/{recipient_id}/', response=dict)
 def update_recipient(request, recipient_id: int, payload: RecipientUpdate):
-    recipient = Recipient.objects.get(id=recipient_id)
-    for attr, value in payload.model_dump(exclude_unset=True).items():
-        setattr(recipient, attr, value)
-    recipient.save()
+    try:
+        recipient = Recipient.objects.get(id=recipient_id)
+        for attr, value in payload.model_dump(exclude_unset=True).items():
+            setattr(recipient, attr, value)
+        recipient.save()
+    except Recipient.DoesNotExist:
+        raise HttpError(404, 'Destinatário não encontrado.')
+    except ValidationError as e:
+        raise HttpError(400, '; '.join(e.messages))
     return _model_to_dict(recipient, [
         'id', 'name', 'identifier', 'platform', 'cpf', 'matricula_funcional',
         'is_active', 'created_at'
